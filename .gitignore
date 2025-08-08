@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment variables (if using server)
+.env
+
+# Production config with real API key
+config.production.js
+
+# Logs
+*.log
+.qodo
+# OS generated files
+.DS_Store
+Thumbs.db

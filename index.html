@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETH 1H 技術指標 (KDJ+RSI+MACD) - IndexedDB版本</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #0056b3;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .controls button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .controls button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            color: #555;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+        }
+        .warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .api-key-notice {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .api-key-notice strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ETH 1H 技術指標分析 (KDJ+RSI+MACD) - IndexedDB版本</h1>
+    
+    <!-- API Key Configuration Panel -->
+    <div id="api-key-panel" class="api-key-notice" style="display: none;">
+        <strong>🔑 需要設置 API 密鑰</strong>
+        <div style="margin-top: 10px;">
+            <label for="api-key-input">請輸入您的 Taapi.io API 密鑰：</label>
+            <div style="margin-top: 5px;">
+                <input type="password" id="api-key-input" placeholder="輸入您的API密鑰" style="width: 300px; padding: 5px; margin-right: 10px;">
+                <button id="save-api-key-btn" style="padding: 5px 10px;">保存</button>
+            </div>
+            <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                沒有API密鑰？<a href="https://taapi.io/" target="_blank">點此免費申請</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="refresh-button">一鍵更新所有指標 (使用 Bulk API)</button>
+        <div class="info">
+            <div id="last-update">最後更新: 尚未更新</div>
+            <div>✅ 智能緩存：數據會累積存儲，每5分鐘自動檢查是否需要整點更新</div>
+            <div style="margin-top: 10px;">
+                <strong>顏色說明：</strong>
+                <span style="color: #FFD700; font-weight: bold;">金色=KDJ金叉</span> | 
+                <span style="color: #000000; font-weight: bold;">黑色=KDJ死叉</span> | 
+                <span style="color: #28a745; font-weight: bold;">綠色=多頭</span> | 
+                <span style="color: #dc3545; font-weight: bold;">紅色=空頭</span> | 
+                <span style="color: #fd7e14; font-weight: bold;">橙色=超買</span> | 
+                <span style="color: #6f42c1; font-weight: bold;">紫色=超賣</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="data-container">
+        <p class="loading">載入數據中...</p>
+    </div>
+
+    <!-- Include our new JavaScript modules -->
+    <script src="config.js"></script>
+    <script src="indexeddb-storage.js"></script>
+    <script src="api-client-bulk.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
