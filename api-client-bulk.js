@@ -23,6 +23,23 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1) {
         try {
+            console.log('Fetching price data...');
+            const priceResponse = await fetch(`${this.baseUrl}/price?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!priceResponse.ok) {
+                const errorText = await priceResponse.text();
+                if (priceResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching price failed: ${priceResponse.status} - ${errorText}`);
+            }
+            const priceData = await priceResponse.json();
+            console.log('Price Response:', priceData);
+
+            // Wait for a configurable delay
+            const delay = window.CONFIG?.API_DELAY_MS || 15000;
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
             console.log('Fetching KDJ data...');
             const kdjResponse = await fetch(`${this.baseUrl}/stoch?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
             if (!kdjResponse.ok) {
@@ -36,7 +53,6 @@ class TaapiClientBulk {
             console.log('KDJ Response:', kdjData);
 
             // Wait for a configurable delay
-            const delay = window.CONFIG?.API_DELAY_MS || 15000;
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
@@ -69,6 +85,7 @@ class TaapiClientBulk {
             // Construct the final object for processing
             const finalBulkResponse = {
                 data: [
+                    { id: 'price', result: priceData },
                     { id: 'kdj', result: kdjData },
                     { id: 'rsi', result: rsiData },
                     { id: 'macd', result: macdData }
@@ -88,15 +105,17 @@ class TaapiClientBulk {
     processBulkData(bulkResponse) {
         console.log('Processing combined data:', bulkResponse);
 
+        const priceData = bulkResponse.data?.find(item => item.id === 'price')?.result || [];
         const kdjData = bulkResponse.data?.find(item => item.id === 'kdj')?.result || [];
         const rsiData = bulkResponse.data?.find(item => item.id === 'rsi')?.result || [];
         const macdData = bulkResponse.data?.find(item => item.id === 'macd')?.result || [];
 
+        console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
         console.log('Extracted RSI data:', rsiData);
         console.log('Extracted MACD data:', macdData);
 
-        if (kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -106,9 +125,20 @@ class TaapiClientBulk {
         const initDataPoint = (timestamp) => ({
             timestamp: timestamp,
             backtrack: 0,
+            price: 0,
             kValue: 0, dValue: 0, jValue: 0,
             rsiValue: 0,
             macdValue: 0, signalValue: 0, histValue: 0
+        });
+
+        // Process Price data - ensure it's an array
+        const priceArray = Array.isArray(priceData) ? priceData : (priceData ? [priceData] : []);
+        priceArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.price = item.value || item.price || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
         });
 
         // Process KDJ data - ensure it's an array
@@ -162,7 +192,9 @@ class TaapiClientBulk {
             processedData.push({
                 timestamp: item.timestamp,
                 backtrack: item.backtrack,
-                // KDJ values
+                // Price value
+                price: parseFloat(item.price) || 0,
+                // KDJ values (J value calculated but not displayed)
                 kValue: parseFloat(item.kValue) || 0,
                 dValue: parseFloat(item.dValue) || 0,
                 jValue: parseFloat(item.jValue) || 0,
@@ -183,6 +215,51 @@ class TaapiClientBulk {
 
         console.log('Final combined processed data:', processedData);
         return processedData;
+    }
+
+    // Analyze KDJ indicator
+    analyzeKDJ(k, d, j, previous, hasData) {
+        if (!hasData) {
+            return { description: 'KDJ數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+
+        if (previous && previous.kValue !== 0) {
+            const prevK = previous.kValue;
+            const prevD = previous.dValue;
+
+            if (prevK <= prevD && k > d) {
+                description = 'KDJ金叉 (K線上穿D線)';
+                trend = 'bullish';
+            } else if (prevK >= prevD && k < d) {
+                description = 'KDJ死叉 (K線下穿D線)';
+                trend = 'bearish';
+            } else if (k > d) {
+                description = 'KDJ多頭持續 (K>D)';
+                trend = 'bullish';
+            } else if (k < d) {
+                description = 'KDJ空頭持續 (K<D)';
+                trend = 'bearish';
+            } else {
+                description = 'KDJ盤整 (K≈D)';
+                trend = 'neutral';
+            }
+        } else {
+            if (k > d) {
+                description = 'KDJ多頭 (K>D)';
+                trend = 'bullish';
+            } else if (k < d) {
+                description = 'KDJ空頭 (K<D)';
+                trend = 'bearish';
+            } else {
+                description = 'KDJ中性';
+                trend = 'neutral';
+            }
+        }
+
+        return { description, trend };
     }
 
     // Analyze KDJ indicator
