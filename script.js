@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, K, D, KDJ, RSI, MACD, Squeeze order
+    // Table header - Time, Price, K, D, KDJ, RSI, MACD, Squeeze, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'K值', 'D值', 'KDJ說明', 'RSI值', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze'].forEach(text => {
+    ['時間', '價格', 'K值', 'D值', 'KDJ說明', 'RSI值', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -304,7 +304,8 @@ function displayTable(macdData) {
             { text: (typeof item.signalValue === 'number' ? item.signalValue.toFixed(2) : '0.00'), trend: null },
             { text: (typeof item.histValue === 'number' ? item.histValue.toFixed(2) : '0.00'), trend: null },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
-            { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null }
+            { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
+            { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
 
         cells.forEach(cell => {
@@ -336,6 +337,18 @@ function displayTable(macdData) {
                 } else if (cell.trend === 'squeeze') {
                     td.style.color = '#17a2b8'; // Cyan for squeeze
                     td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'supertrend') {
+                    // Color based on Supertrend advice
+                    if (cell.text.toLowerCase().includes('buy') || cell.text.toLowerCase().includes('long')) {
+                        td.style.color = '#28a745'; // Green for buy signals
+                        td.style.fontWeight = 'bold';
+                    } else if (cell.text.toLowerCase().includes('sell') || cell.text.toLowerCase().includes('short')) {
+                        td.style.color = '#dc3545'; // Red for sell signals
+                        td.style.fontWeight = 'bold';
+                    } else {
+                        td.style.color = '#6c757d'; // Gray for neutral
+                        td.style.fontWeight = 'bold';
+                    }
                 }
             }
             

@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 5; // Price, KDJ, RSI, MACD, Squeeze
+            const totalSteps = 6; // Price, KDJ, RSI, MACD, Squeeze, Supertrend
             let currentStep = 0;
             
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
@@ -106,6 +106,23 @@ class TaapiClientBulk {
             const squeezeData = await squeezeResponse.json();
             console.log('Squeeze Response:', squeezeData);
 
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Supertrend data...');
+            console.log('Fetching Supertrend data...');
+            const supertrendResponse = await fetch(`${this.baseUrl}/supertrend?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!supertrendResponse.ok) {
+                const errorText = await supertrendResponse.text();
+                if (supertrendResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching Supertrend failed: ${supertrendResponse.status} - ${errorText}`);
+            }
+            const supertrendData = await supertrendResponse.json();
+            console.log('Supertrend Response:', supertrendData);
+
             // Construct the final object for processing
             const finalBulkResponse = {
                 data: [
@@ -113,7 +130,8 @@ class TaapiClientBulk {
                     { id: 'kdj', result: kdjData },
                     { id: 'rsi', result: rsiData },
                     { id: 'macd', result: macdData },
-                    { id: 'squeeze', result: squeezeData }
+                    { id: 'squeeze', result: squeezeData },
+                    { id: 'supertrend', result: supertrendData }
                 ]
             };
 
@@ -136,14 +154,16 @@ class TaapiClientBulk {
         const rsiData = bulkResponse.data?.find(item => item.id === 'rsi')?.result || [];
         const macdData = bulkResponse.data?.find(item => item.id === 'macd')?.result || [];
         const squeezeData = bulkResponse.data?.find(item => item.id === 'squeeze')?.result || [];
+        const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
 
         console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
         console.log('Extracted RSI data:', rsiData);
         console.log('Extracted MACD data:', macdData);
         console.log('Extracted Squeeze data:', squeezeData);
+        console.log('Extracted Supertrend data:', supertrendData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0 && supertrendData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -157,7 +177,8 @@ class TaapiClientBulk {
             kValue: 0, dValue: 0, jValue: 0,
             rsiValue: 0,
             macdValue: 0, signalValue: 0, histValue: 0,
-            squeeze: false
+            squeeze: false,
+            supertrendAdvice: ''
         });
 
         // Process Price data - ensure it's an array
@@ -215,6 +236,16 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process Supertrend data - ensure it's an array
+        const supertrendArray = Array.isArray(supertrendData) ? supertrendData : (supertrendData ? [supertrendData] : []);
+        supertrendArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.supertrendAdvice = item.valueAdvice || item.advice || '';
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Convert map to array and sort by timestamp descending (newest first)
         let combinedData = Array.from(dataMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -250,7 +281,9 @@ class TaapiClientBulk {
                 macdDescription: macdAnalysis.description,
                 macdTrend: macdAnalysis.trend,
                 // Squeeze value
-                squeeze: item.squeeze || false
+                squeeze: item.squeeze || false,
+                // Supertrend advice
+                supertrendAdvice: item.supertrendAdvice || ''
             });
         }
 
