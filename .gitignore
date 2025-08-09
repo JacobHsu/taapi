@@ -3,7 +3,7 @@ node_modules/
 
 # Environment variables (if using server)
 .env
-
+config.js
 # Production config with real API key
 config.production.js
 

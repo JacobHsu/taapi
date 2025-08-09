@@ -93,6 +93,34 @@
             display: block;
             margin-bottom: 5px;
         }
+        .progress-container {
+            margin: 20px 0;
+            background-color: #fff;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        .progress-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -113,6 +141,14 @@
         </div>
     </div>
 
+    <!-- Progress Bar -->
+    <div id="progress-container" class="progress-container">
+        <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div id="progress-text" class="progress-text">載入中...</div>
+    </div>
+
     <div class="controls">
         <button id="refresh-button">一鍵更新所有指標 (使用 Bulk API)</button>
         <div class="info">
@@ -125,7 +161,8 @@
                 <span style="color: #28a745; font-weight: bold;">綠色=多頭</span> | 
                 <span style="color: #dc3545; font-weight: bold;">紅色=空頭</span> | 
                 <span style="color: #fd7e14; font-weight: bold;">橙色=超買</span> | 
-                <span style="color: #6f42c1; font-weight: bold;">紫色=超賣</span>
+                <span style="color: #6f42c1; font-weight: bold;">紫色=超賣</span> | 
+                <span style="color: #17a2b8; font-weight: bold;">青色=Squeeze</span>
             </div>
         </div>
     </div>

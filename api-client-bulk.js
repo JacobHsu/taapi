@@ -6,23 +6,27 @@ class TaapiClientBulk {
     }
 
     // Fetch initial historical data (5 records)
-    async fetchInitialData(symbol = 'ETH/USDT', interval = '1h') {
-        return this.fetchIndicatorsWithBacktracks(symbol, interval, 5);
+    async fetchInitialData(symbol = 'ETH/USDT', interval = '1h', progressCallback = null) {
+        return this.fetchIndicatorsWithBacktracks(symbol, interval, 5, progressCallback);
     }
 
     // Fetch latest data only (1 record)
-    async fetchLatestData(symbol = 'ETH/USDT', interval = '1h') {
-        return this.fetchIndicatorsWithBacktracks(symbol, interval, 1);
+    async fetchLatestData(symbol = 'ETH/USDT', interval = '1h', progressCallback = null) {
+        return this.fetchIndicatorsWithBacktracks(symbol, interval, 1, progressCallback);
     }
 
     // Legacy method - now calls fetchLatestData
-    async fetchAllIndicators(symbol = 'ETH/USDT', interval = '1h') {
-        return this.fetchLatestData(symbol, interval);
+    async fetchAllIndicators(symbol = 'ETH/USDT', interval = '1h', progressCallback = null) {
+        return this.fetchLatestData(symbol, interval, progressCallback);
     }
 
     // Core method to fetch data with specified backtracks
-    async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1) {
+    async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
+            const totalSteps = 5; // Price, KDJ, RSI, MACD, Squeeze
+            let currentStep = 0;
+            
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
             console.log('Fetching price data...');
             const priceResponse = await fetch(`${this.baseUrl}/price?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
             if (!priceResponse.ok) {
@@ -40,6 +44,7 @@ class TaapiClientBulk {
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching KDJ data...');
             console.log('Fetching KDJ data...');
             const kdjResponse = await fetch(`${this.baseUrl}/stoch?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
             if (!kdjResponse.ok) {
@@ -56,6 +61,7 @@ class TaapiClientBulk {
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching RSI data...');
             console.log('Fetching RSI data...');
             const rsiResponse = await fetch(`${this.baseUrl}/rsi?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
             if (!rsiResponse.ok) {
@@ -71,6 +77,7 @@ class TaapiClientBulk {
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching MACD data...');
             console.log('Fetching MACD data...');
             const macdResponse = await fetch(`${this.baseUrl}/macd?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
             if (!macdResponse.ok) {
@@ -82,16 +89,35 @@ class TaapiClientBulk {
             }
             const macdData = await macdResponse.json();
 
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Squeeze data...');
+            console.log('Fetching Squeeze data...');
+            const squeezeResponse = await fetch(`${this.baseUrl}/squeeze?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!squeezeResponse.ok) {
+                const errorText = await squeezeResponse.text();
+                if (squeezeResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching Squeeze failed: ${squeezeResponse.status} - ${errorText}`);
+            }
+            const squeezeData = await squeezeResponse.json();
+            console.log('Squeeze Response:', squeezeData);
+
             // Construct the final object for processing
             const finalBulkResponse = {
                 data: [
                     { id: 'price', result: priceData },
                     { id: 'kdj', result: kdjData },
                     { id: 'rsi', result: rsiData },
-                    { id: 'macd', result: macdData }
+                    { id: 'macd', result: macdData },
+                    { id: 'squeeze', result: squeezeData }
                 ]
             };
 
+            if (progressCallback) progressCallback(totalSteps, totalSteps, 'Processing data...');
             console.log('Parsed sequential API response:', finalBulkResponse);
             return this.processBulkData(finalBulkResponse);
 
@@ -109,13 +135,15 @@ class TaapiClientBulk {
         const kdjData = bulkResponse.data?.find(item => item.id === 'kdj')?.result || [];
         const rsiData = bulkResponse.data?.find(item => item.id === 'rsi')?.result || [];
         const macdData = bulkResponse.data?.find(item => item.id === 'macd')?.result || [];
+        const squeezeData = bulkResponse.data?.find(item => item.id === 'squeeze')?.result || [];
 
         console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
         console.log('Extracted RSI data:', rsiData);
         console.log('Extracted MACD data:', macdData);
+        console.log('Extracted Squeeze data:', squeezeData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -128,7 +156,8 @@ class TaapiClientBulk {
             price: 0,
             kValue: 0, dValue: 0, jValue: 0,
             rsiValue: 0,
-            macdValue: 0, signalValue: 0, histValue: 0
+            macdValue: 0, signalValue: 0, histValue: 0,
+            squeeze: false
         });
 
         // Process Price data - ensure it's an array
@@ -176,6 +205,16 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process Squeeze data - ensure it's an array
+        const squeezeArray = Array.isArray(squeezeData) ? squeezeData : (squeezeData ? [squeezeData] : []);
+        squeezeArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.squeeze = item.squeeze || item.value || false;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Convert map to array and sort by timestamp descending (newest first)
         let combinedData = Array.from(dataMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -209,7 +248,9 @@ class TaapiClientBulk {
                 signalValue: parseFloat(item.signalValue) || 0,
                 histValue: parseFloat(item.histValue) || 0,
                 macdDescription: macdAnalysis.description,
-                macdTrend: macdAnalysis.trend
+                macdTrend: macdAnalysis.trend,
+                // Squeeze value
+                squeeze: item.squeeze || false
             });
         }
 

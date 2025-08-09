@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await loadAndDisplayData();
             } catch (error) {
                 console.error('Error refreshing data:', error);
+                hideProgressBar();
                 if (error.message.includes('rate-limit') || error.message.includes('429')) {
                     showError(`API 調用頻率限制，請稍後再試: ${error.message}`);
                 } else {
@@ -214,34 +215,46 @@ async function fetchAndStoreData() {
     console.log('Using config:', window.CONFIG); // Debug log
     console.log('Using API client:', apiClient.constructor.name); // Debug log
     
-    // Check if this is initial load (no existing data) or incremental update
-    const existingData = await storage.getData();
-    const hasExistingData = existingData.filter(item => item.id !== 'lastUpdate').length > 0;
+    // Show progress bar
+    showProgressBar();
     
-    let processedData;
-    if (hasExistingData) {
-        // Incremental update - fetch only latest data
-        console.log('Fetching incremental update (1 record)...');
-        processedData = await apiClient.fetchLatestData();
-    } else {
-        // Initial load - fetch historical data
-        console.log('Initial load - fetching historical data (5 records)...');
-        processedData = await apiClient.fetchInitialData();
-    }
+    try {
+        // Check if this is initial load (no existing data) or incremental update
+        const existingData = await storage.getData();
+        const hasExistingData = existingData.filter(item => item.id !== 'lastUpdate').length > 0;
+        
+        let processedData;
+        if (hasExistingData) {
+            // Incremental update - fetch only latest data
+            console.log('Fetching incremental update (1 record)...');
+            processedData = await apiClient.fetchLatestData('ETH/USDT', '1h', updateProgress);
+        } else {
+            // Initial load - fetch historical data
+            console.log('Initial load - fetching historical data (5 records)...');
+            processedData = await apiClient.fetchInitialData('ETH/USDT', '1h', updateProgress);
+        }
 
-    // --- DEBUG --- Check the data right after processing
-    console.log('Data received from apiClient before storing:', JSON.stringify(processedData, null, 2));
-    // --- END DEBUG ---
-    
-    console.log('Received processed data:', processedData); // Debug log
-    
-    if (!processedData || processedData.length === 0) {
-        throw new Error('No data received from API - check console for details');
+        // --- DEBUG --- Check the data right after processing
+        console.log('Data received from apiClient before storing:', JSON.stringify(processedData, null, 2));
+        // --- END DEBUG ---
+        
+        console.log('Received processed data:', processedData); // Debug log
+        
+        if (!processedData || processedData.length === 0) {
+            throw new Error('No data received from API - check console for details');
+        }
+        
+        await storage.storeData(processedData);
+        await storage.setLastUpdate();
+        console.log('Data stored successfully, count:', processedData.length); // Debug log
+        
+        // Hide progress bar
+        hideProgressBar();
+    } catch (error) {
+        // Hide progress bar on error
+        hideProgressBar();
+        throw error; // Re-throw the error for upper level handling
     }
-    
-    await storage.storeData(processedData);
-    await storage.setLastUpdate();
-    console.log('Data stored successfully, count:', processedData.length); // Debug log
 }
 
 function displayTable(macdData) {
@@ -252,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, K, D, KDJ, RSI, MACD order
+    // Table header - Time, Price, K, D, KDJ, RSI, MACD, Squeeze order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'K值', 'D值', 'KDJ說明', 'RSI值', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明'].forEach(text => {
+    ['時間', '價格', 'K值', 'D值', 'KDJ說明', 'RSI值', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -290,7 +303,8 @@ function displayTable(macdData) {
             { text: (typeof item.macdValue === 'number' ? item.macdValue.toFixed(2) : '0.00'), trend: null },
             { text: (typeof item.signalValue === 'number' ? item.signalValue.toFixed(2) : '0.00'), trend: null },
             { text: (typeof item.histValue === 'number' ? item.histValue.toFixed(2) : '0.00'), trend: null },
-            { text: item.macdDescription || 'MACD中性', trend: item.macdTrend }
+            { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
+            { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null }
         ];
 
         cells.forEach(cell => {
@@ -319,6 +333,9 @@ function displayTable(macdData) {
                 } else if (cell.trend === 'oversold') {
                     td.style.color = '#6f42c1'; // Purple for oversold
                     td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'squeeze') {
+                    td.style.color = '#17a2b8'; // Cyan for squeeze
+                    td.style.fontWeight = 'bold';
                 }
             }
             
@@ -343,6 +360,33 @@ function showWarning(message) {
     warning.className = 'warning';
     warning.textContent = message;
     dataContainer.insertBefore(warning, dataContainer.firstChild);
+}
+
+// Progress bar functions
+function showProgressBar() {
+    const progressContainer = document.getElementById('progress-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    progressContainer.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = '準備載入...';
+}
+
+function hideProgressBar() {
+    const progressContainer = document.getElementById('progress-container');
+    setTimeout(() => {
+        progressContainer.style.display = 'none';
+    }, 1000); // Hide after 1 second to show completion
+}
+
+function updateProgress(currentStep, totalSteps, message) {
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    
+    const percentage = Math.round((currentStep / totalSteps) * 100);
+    progressFill.style.width = percentage + '%';
+    progressText.textContent = `${message} (${currentStep}/${totalSteps})`;
 }
 
 
