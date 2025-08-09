@@ -344,36 +344,38 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
+        const kStr = k.toFixed(2);
+        const dStr = d.toFixed(2);
 
         if (previous && previous.kValue !== 0) {
             const prevK = previous.kValue;
             const prevD = previous.dValue;
 
             if (prevK <= prevD && k > d) {
-                description = 'KDJ金叉 (K線上穿D線)';
+                description = `KDJ金叉 (K線上穿D線)(${kStr}>${dStr})`;
                 trend = 'bullish';
             } else if (prevK >= prevD && k < d) {
-                description = 'KDJ死叉 (K線下穿D線)';
+                description = `KDJ死叉 (K線下穿D線)(${kStr}<${dStr})`;
                 trend = 'bearish';
             } else if (k > d) {
-                description = 'KDJ多頭持續 (K>D)';
+                description = `KDJ多頭持續 (K>D)(${kStr}>${dStr})`;
                 trend = 'bullish';
             } else if (k < d) {
-                description = 'KDJ空頭持續 (K<D)';
+                description = `KDJ空頭持續 (K<D)(${kStr}<${dStr})`;
                 trend = 'bearish';
             } else {
-                description = 'KDJ盤整 (K≈D)';
+                description = `KDJ盤整 (K≈D)(${kStr}≈${dStr})`;
                 trend = 'neutral';
             }
         } else {
             if (k > d) {
-                description = 'KDJ多頭 (K>D)';
+                description = `KDJ多頭 (K>D)(${kStr}>${dStr})`;
                 trend = 'bullish';
             } else if (k < d) {
-                description = 'KDJ空頭 (K<D)';
+                description = `KDJ空頭 (K<D)(${kStr}<${dStr})`;
                 trend = 'bearish';
             } else {
-                description = 'KDJ中性';
+                description = `KDJ中性 (${kStr}≈${dStr})`;
                 trend = 'neutral';
             }
         }
@@ -389,21 +391,22 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
+        const rsiStr = rsi.toFixed(2);
 
         if (rsi >= 70) {
-            description = 'RSI超買 (≥70)';
+            description = `RSI超買 (≥70)(${rsiStr})`;
             trend = 'overbought';
         } else if (rsi <= 30) {
-            description = 'RSI超賣 (≤30)';
+            description = `RSI超賣 (≤30)(${rsiStr})`;
             trend = 'oversold';
         } else if (rsi > 50) {
-            description = 'RSI偏多 (>50)';
+            description = `RSI偏多 (>50)(${rsiStr})`;
             trend = 'bullish';
         } else if (rsi < 50) {
-            description = 'RSI偏空 (<50)';
+            description = `RSI偏空 (<50)(${rsiStr})`;
             trend = 'bearish';
         } else {
-            description = 'RSI中性 (≈50)';
+            description = `RSI中性 (≈50)(${rsiStr})`;
             trend = 'neutral';
         }
 

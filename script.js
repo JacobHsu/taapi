@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, K, D, KDJ, RSI, MACD, Squeeze, Supertrend order
+    // Table header - Time, Price, KDJ, RSI, MACD, Squeeze, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'K值', 'D值', 'KDJ說明', 'RSI值', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -295,10 +295,7 @@ function displayTable(macdData) {
         const cells = [
             { text: formattedDate, trend: null },
             { text: (typeof item.price === 'number' ? '$' + item.price.toFixed(2) : '載入中...'), trend: null },
-            { text: (typeof item.kValue === 'number' ? item.kValue.toFixed(2) : '0.00'), trend: null },
-            { text: (typeof item.dValue === 'number' ? item.dValue.toFixed(2) : '0.00'), trend: null },
             { text: item.kdjDescription || 'KDJ中性', trend: item.kdjTrend },
-            { text: (typeof item.rsiValue === 'number' ? item.rsiValue.toFixed(2) : '0.00'), trend: null },
             { text: item.rsiDescription || 'RSI中性', trend: item.rsiTrend },
             { text: (typeof item.macdValue === 'number' ? item.macdValue.toFixed(2) : '0.00'), trend: null },
             { text: (typeof item.signalValue === 'number' ? item.signalValue.toFixed(2) : '0.00'), trend: null },
