@@ -4,6 +4,7 @@
 
 [psar](https://taapi.io/indicators/parabolic-sar/)  
 [bbands](https://taapi.io/indicators/bollinger-bands/)  
+[keltnerchannels](https://taapi.io/indicators/keltner-channels/)  
 
 ## ✨ 核心功能
 
