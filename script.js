@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, KDJ, RSI, MACD, Squeeze, PSAR, Supertrend order
+    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'PSAR', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'BBands', 'Squeeze', 'PSAR', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -301,6 +301,7 @@ function displayTable(macdData) {
             { text: (typeof item.signalValue === 'number' ? item.signalValue.toFixed(2) : '0.00'), trend: null },
             { text: (typeof item.histValue === 'number' ? item.histValue.toFixed(2) : '0.00'), trend: null },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
+            { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
             { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
@@ -332,7 +333,25 @@ function displayTable(macdData) {
             }
             // Apply color based on trend for other cases
             else if (cell.trend) {
-                if (cell.trend === 'bullish') {
+                // BBands specific styling
+                if (cell.trend === 'upper_breakout') {
+                    td.style.color = '#28a745'; // Green for upper band breakout
+                    td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'lower_breakout') {
+                    td.style.color = '#dc3545'; // Red for lower band breakout
+                    td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'above_middle') {
+                    td.style.color = '#28a745'; // Green for above middle band
+                    td.style.fontWeight = 'normal';
+                } else if (cell.trend === 'below_middle') {
+                    td.style.color = '#dc3545'; // Red for below middle band
+                    td.style.fontWeight = 'normal';
+                } else if (cell.trend === 'at_middle') {
+                    td.style.color = '#6c757d'; // Gray for at middle band
+                    td.style.fontWeight = 'normal';
+                }
+                // General trend styling
+                else if (cell.trend === 'bullish') {
                     td.style.color = '#28a745'; // Green for bullish
                     td.style.fontWeight = 'bold';
                 } else if (cell.trend === 'bearish') {

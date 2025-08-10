@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 7; // Price, KDJ, RSI, MACD, Squeeze, PSAR, Supertrend
+            const totalSteps = 8; // Price, KDJ, RSI, MACD, BBands, Squeeze, PSAR, Supertrend
             let currentStep = 0;
             
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
@@ -93,6 +93,23 @@ class TaapiClientBulk {
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching BBands data...');
+            console.log('Fetching BBands data...');
+            const bbandsResponse = await fetch(`${this.baseUrl}/bbands?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!bbandsResponse.ok) {
+                const errorText = await bbandsResponse.text();
+                if (bbandsResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching BBands failed: ${bbandsResponse.status} - ${errorText}`);
+            }
+            const bbandsData = await bbandsResponse.json();
+            console.log('BBands Response:', bbandsData);
+
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Squeeze data...');
             console.log('Fetching Squeeze data...');
             const squeezeResponse = await fetch(`${this.baseUrl}/squeeze?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
@@ -147,6 +164,7 @@ class TaapiClientBulk {
                     { id: 'kdj', result: kdjData },
                     { id: 'rsi', result: rsiData },
                     { id: 'macd', result: macdData },
+                    { id: 'bbands', result: bbandsData },
                     { id: 'squeeze', result: squeezeData },
                     { id: 'psar', result: psarData },
                     { id: 'supertrend', result: supertrendData }
@@ -171,6 +189,7 @@ class TaapiClientBulk {
         const kdjData = bulkResponse.data?.find(item => item.id === 'kdj')?.result || [];
         const rsiData = bulkResponse.data?.find(item => item.id === 'rsi')?.result || [];
         const macdData = bulkResponse.data?.find(item => item.id === 'macd')?.result || [];
+        const bbandsData = bulkResponse.data?.find(item => item.id === 'bbands')?.result || [];
         const squeezeData = bulkResponse.data?.find(item => item.id === 'squeeze')?.result || [];
         const psarData = bulkResponse.data?.find(item => item.id === 'psar')?.result || [];
         const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
@@ -179,11 +198,12 @@ class TaapiClientBulk {
         console.log('Extracted KDJ data:', kdjData);
         console.log('Extracted RSI data:', rsiData);
         console.log('Extracted MACD data:', macdData);
+        console.log('Extracted BBands data:', bbandsData);
         console.log('Extracted Squeeze data:', squeezeData);
         console.log('Extracted PSAR data:', psarData);
         console.log('Extracted Supertrend data:', supertrendData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -197,6 +217,7 @@ class TaapiClientBulk {
             kValue: 0, dValue: 0, jValue: 0,
             rsiValue: 0,
             macdValue: 0, signalValue: 0, histValue: 0,
+            bbandsUpper: 0, bbandsMiddle: 0, bbandsLower: 0,
             squeeze: false,
             psarValue: 0,
             supertrendAdvice: ''
@@ -247,6 +268,18 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process BBands data - ensure it's an array
+        const bbandsArray = Array.isArray(bbandsData) ? bbandsData : (bbandsData ? [bbandsData] : []);
+        bbandsArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.bbandsUpper = item.valueUpperBand || item.upper || 0;
+            point.bbandsMiddle = item.valueMiddleBand || item.middle || 0;
+            point.bbandsLower = item.valueLowerBand || item.lower || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Process Squeeze data - ensure it's an array
         const squeezeArray = Array.isArray(squeezeData) ? squeezeData : (squeezeData ? [squeezeData] : []);
         squeezeArray.forEach(item => {
@@ -289,6 +322,7 @@ class TaapiClientBulk {
             const kdjAnalysis = this.analyzeKDJ(item.kValue, item.dValue, item.jValue, previous, kdjArray.length > 0);
             const rsiAnalysis = this.analyzeRSI(item.rsiValue, rsiArray.length > 0);
             const macdAnalysis = this.analyzeMacd(item.macdValue, item.signalValue, previous, macdArray.length > 0);
+            const bbandsAnalysis = this.analyzeBBands(item.bbandsUpper, item.bbandsMiddle, item.bbandsLower, item.price, bbandsArray.length > 0);
             const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
 
             processedData.push({
@@ -312,6 +346,12 @@ class TaapiClientBulk {
                 histValue: parseFloat(item.histValue) || 0,
                 macdDescription: macdAnalysis.description,
                 macdTrend: macdAnalysis.trend,
+                // BBands values
+                bbandsUpper: parseFloat(item.bbandsUpper) || 0,
+                bbandsMiddle: parseFloat(item.bbandsMiddle) || 0,
+                bbandsLower: parseFloat(item.bbandsLower) || 0,
+                bbandsDescription: bbandsAnalysis.description,
+                bbandsTrend: bbandsAnalysis.trend,
                 // Squeeze value
                 squeeze: item.squeeze || false,
                 // PSAR values
@@ -489,6 +529,44 @@ class TaapiClientBulk {
                 description = 'MACD中性';
                 trend = 'neutral';
             }
+        }
+
+        return { description, trend };
+    }
+
+    // Analyze Bollinger Bands indicator
+    analyzeBBands(upper, middle, lower, price, hasData) {
+        if (!hasData || !price || !upper || !lower || !middle) {
+            return { description: 'BBands數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+        const priceStr = price.toFixed(2);
+        const upperStr = upper.toFixed(2);
+        const lowerStr = lower.toFixed(2);
+        const middleStr = middle.toFixed(2);
+
+        // Calculate position relative to bands
+        const upperDistance = ((price - upper) / upper * 100).toFixed(2);
+        const lowerDistance = ((price - lower) / lower * 100).toFixed(2);
+        const middleDistance = ((price - middle) / middle * 100).toFixed(2);
+
+        if (price > upper) {
+            description = `上軌上方 (${priceStr}>${upperStr}) (+${upperDistance}%)`;
+            trend = 'upper_breakout';
+        } else if (price < lower) {
+            description = `下軌下方 (${priceStr}<${lowerStr}) (${lowerDistance}%)`;
+            trend = 'lower_breakout';
+        } else if (price > middle) {
+            description = `中軌上方 (${priceStr}>${middleStr}) (+${middleDistance}%)`;
+            trend = 'above_middle';
+        } else if (price < middle) {
+            description = `中軌下方 (${priceStr}<${middleStr}) (${middleDistance}%)`;
+            trend = 'below_middle';
+        } else {
+            description = `中軌附近 (${priceStr}≈${middleStr})`;
+            trend = 'at_middle';
         }
 
         return { description, trend };
