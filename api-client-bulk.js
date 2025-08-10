@@ -585,10 +585,10 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
-        const priceStr = price.toFixed(2);
-        const upperStr = upper.toFixed(2);
-        const lowerStr = lower.toFixed(2);
-        const middleStr = middle.toFixed(2);
+        const priceStr = Math.round(price).toString();
+        const upperStr = Math.round(upper).toString();
+        const lowerStr = Math.round(lower).toString();
+        const middleStr = Math.round(middle).toString();
 
         // Calculate position relative to bands
         const upperDistance = ((price - upper) / upper * 100).toFixed(2);
@@ -623,10 +623,10 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
-        const priceStr = price.toFixed(2);
-        const upperStr = upper.toFixed(2);
-        const lowerStr = lower.toFixed(2);
-        const middleStr = middle.toFixed(2);
+        const priceStr = Math.round(price).toString();
+        const upperStr = Math.round(upper).toString();
+        const lowerStr = Math.round(lower).toString();
+        const middleStr = Math.round(middle).toString();
 
         // Calculate position relative to channels
         const upperDistance = ((price - upper) / upper * 100).toFixed(2);

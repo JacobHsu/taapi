@@ -267,7 +267,7 @@ function displayTable(macdData) {
 
     // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD說明', 'PSAR', 'BBands', 'Keltner', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ說明', 'RSI說明', 'PSAR', 'Keltner', 'BBands', 'MACD', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -276,7 +276,7 @@ function displayTable(macdData) {
     table.appendChild(thead);
 
     // Table body
-    macdData.forEach(item => {
+    macdData.forEach((item, index) => {
         const row = document.createElement('tr');
         const date = new Date(item.timestamp * 1000);
         
@@ -291,16 +291,44 @@ function displayTable(macdData) {
             hour12: false
         });
 
+        // Calculate hourly price change
+        let priceText = '';
+        let priceChangeText = '';
+        let priceChangeTrend = null;
+        
+        if (typeof item.price === 'number') {
+            priceText = '$' + item.price.toFixed(2);
+            
+            // Find previous hour data (next item in sorted array since it's newest first)
+            if (index < macdData.length - 1) {
+                const prevItem = macdData[index + 1];
+                if (typeof prevItem.price === 'number') {
+                    const priceChange = item.price - prevItem.price;
+                    const priceChangePercent = (priceChange / prevItem.price * 100);
+                    
+                    if (Math.abs(priceChangePercent) >= 0.01) { // Only show if change is >= 0.01%
+                        const changeSign = priceChange >= 0 ? '+' : '';
+                        priceChangeText = ` (${changeSign}${priceChangePercent.toFixed(2)}%)`;
+                        priceChangeTrend = priceChange >= 0 ? 'price_up' : 'price_down';
+                    }
+                }
+            }
+            
+            priceText += priceChangeText;
+        } else {
+            priceText = '載入中...';
+        }
+
         // Create cells with trend-based coloring
         const cells = [
             { text: formattedDate, trend: null },
-            { text: (typeof item.price === 'number' ? '$' + item.price.toFixed(2) : '載入中...'), trend: null },
+            { text: priceText, trend: priceChangeTrend },
             { text: item.kdjDescription || 'KDJ中性', trend: item.kdjTrend },
             { text: item.rsiDescription || 'RSI中性', trend: item.rsiTrend },
-            { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
-            { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
             { text: item.keltnerDescription || 'Keltner中性', trend: item.keltnerTrend },
+            { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
+            { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
@@ -376,6 +404,12 @@ function displayTable(macdData) {
                         td.style.color = '#6c757d'; // Gray for neutral
                         td.style.fontWeight = 'bold';
                     }
+                } else if (cell.trend === 'price_up') {
+                    td.style.color = '#28a745'; // Green for price increase
+                    td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'price_down') {
+                    td.style.color = '#dc3545'; // Red for price decrease
+                    td.style.fontWeight = 'bold';
                 }
             }
             
