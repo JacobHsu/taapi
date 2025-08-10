@@ -267,7 +267,7 @@ function displayTable(macdData) {
 
     // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'BBands', 'Keltner', 'Squeeze', 'PSAR', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD說明', 'PSAR', 'BBands', 'Keltner', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -297,14 +297,11 @@ function displayTable(macdData) {
             { text: (typeof item.price === 'number' ? '$' + item.price.toFixed(2) : '載入中...'), trend: null },
             { text: item.kdjDescription || 'KDJ中性', trend: item.kdjTrend },
             { text: item.rsiDescription || 'RSI中性', trend: item.rsiTrend },
-            { text: (typeof item.macdValue === 'number' ? item.macdValue.toFixed(2) : '0.00'), trend: null },
-            { text: (typeof item.signalValue === 'number' ? item.signalValue.toFixed(2) : '0.00'), trend: null },
-            { text: (typeof item.histValue === 'number' ? item.histValue.toFixed(2) : '0.00'), trend: null },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
+            { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
             { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
             { text: item.keltnerDescription || 'Keltner中性', trend: item.keltnerTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
-            { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
 

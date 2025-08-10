@@ -354,7 +354,7 @@ class TaapiClientBulk {
 
             const kdjAnalysis = this.analyzeKDJ(item.kValue, item.dValue, item.jValue, previous, kdjArray.length > 0);
             const rsiAnalysis = this.analyzeRSI(item.rsiValue, rsiArray.length > 0);
-            const macdAnalysis = this.analyzeMacd(item.macdValue, item.signalValue, previous, macdArray.length > 0);
+            const macdAnalysis = this.analyzeMacd(item.macdValue, item.signalValue, item.histValue, previous, macdArray.length > 0);
             const bbandsAnalysis = this.analyzeBBands(item.bbandsUpper, item.bbandsMiddle, item.bbandsLower, item.price, bbandsArray.length > 0);
             const keltnerAnalysis = this.analyzeKeltnerChannels(item.keltnerUpper, item.keltnerMiddle, item.keltnerLower, item.price, keltnerArray.length > 0);
             const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
@@ -530,7 +530,7 @@ class TaapiClientBulk {
     }
 
     // Analyze MACD indicator
-    analyzeMacd(macd, signal, previous, hasData) {
+    analyzeMacd(macd, signal, hist, previous, hasData) {
         if (!hasData) {
             return { description: 'MACD數據未獲取', trend: 'neutral' };
         }
@@ -539,36 +539,37 @@ class TaapiClientBulk {
         let trend = 'neutral';
         const macdStr = macd.toFixed(2);
         const signalStr = signal.toFixed(2);
+        const histStr = hist.toFixed(2);
 
         if (previous && previous.macdValue !== 0) {
             const prevMacd = previous.macdValue;
             const prevSignal = previous.signalValue;
 
             if (prevMacd <= prevSignal && macd > signal) {
-                description = `MACD金叉 (MACD上穿Signal)(${macdStr}>${signalStr})`;
+                description = `MACD金叉 (${macdStr}>${signalStr}) Hist:${histStr}`;
                 trend = 'bullish';
             } else if (prevMacd >= prevSignal && macd < signal) {
-                description = `MACD死叉 (MACD下穿Signal)(${macdStr}<${signalStr})`;
+                description = `MACD死叉 (${macdStr}<${signalStr}) Hist:${histStr}`;
                 trend = 'bearish';
             } else if (macd > signal) {
-                description = `MACD多頭持續 (MACD>Signal)(${macdStr}>${signalStr})`;
+                description = `MACD多頭持續 (${macdStr}>${signalStr}) Hist:${histStr}`;
                 trend = 'bullish';
             } else if (macd < signal) {
-                description = `MACD空頭持續 (MACD<Signal)(${macdStr}<${signalStr})`;
+                description = `MACD空頭持續 (${macdStr}<${signalStr}) Hist:${histStr}`;
                 trend = 'bearish';
             } else {
-                description = `MACD盤整 (MACD≈Signal)(${macdStr}≈${signalStr})`;
+                description = `MACD盤整 (${macdStr}≈${signalStr}) Hist:${histStr}`;
                 trend = 'neutral';
             }
         } else {
             if (macd > signal) {
-                description = `MACD多頭 (MACD>Signal)(${macdStr}>${signalStr})`;
+                description = `MACD多頭 (${macdStr}>${signalStr}) Hist:${histStr}`;
                 trend = 'bullish';
             } else if (macd < signal) {
-                description = `MACD空頭 (MACD<Signal)(${macdStr}<${signalStr})`;
+                description = `MACD空頭 (${macdStr}<${signalStr}) Hist:${histStr}`;
                 trend = 'bearish';
             } else {
-                description = `MACD中性 (${macdStr}≈${signalStr})`;
+                description = `MACD中性 (${macdStr}≈${signalStr}) Hist:${histStr}`;
                 trend = 'neutral';
             }
         }
