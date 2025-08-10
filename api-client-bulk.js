@@ -497,36 +497,38 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
+        const macdStr = macd.toFixed(2);
+        const signalStr = signal.toFixed(2);
 
         if (previous && previous.macdValue !== 0) {
             const prevMacd = previous.macdValue;
             const prevSignal = previous.signalValue;
 
             if (prevMacd <= prevSignal && macd > signal) {
-                description = 'MACD金叉 (MACD上穿Signal)';
+                description = `MACD金叉 (MACD上穿Signal)(${macdStr}>${signalStr})`;
                 trend = 'bullish';
             } else if (prevMacd >= prevSignal && macd < signal) {
-                description = 'MACD死叉 (MACD下穿Signal)';
+                description = `MACD死叉 (MACD下穿Signal)(${macdStr}<${signalStr})`;
                 trend = 'bearish';
             } else if (macd > signal) {
-                description = 'MACD多頭持續 (MACD>Signal)';
+                description = `MACD多頭持續 (MACD>Signal)(${macdStr}>${signalStr})`;
                 trend = 'bullish';
             } else if (macd < signal) {
-                description = 'MACD空頭持續 (MACD<Signal)';
+                description = `MACD空頭持續 (MACD<Signal)(${macdStr}<${signalStr})`;
                 trend = 'bearish';
             } else {
-                description = 'MACD盤整 (MACD≈Signal)';
+                description = `MACD盤整 (MACD≈Signal)(${macdStr}≈${signalStr})`;
                 trend = 'neutral';
             }
         } else {
             if (macd > signal) {
-                description = 'MACD多頭 (MACD>Signal)';
+                description = `MACD多頭 (MACD>Signal)(${macdStr}>${signalStr})`;
                 trend = 'bullish';
             } else if (macd < signal) {
-                description = 'MACD空頭 (MACD<Signal)';
+                description = `MACD空頭 (MACD<Signal)(${macdStr}<${signalStr})`;
                 trend = 'bearish';
             } else {
-                description = 'MACD中性';
+                description = `MACD中性 (${macdStr}≈${signalStr})`;
                 trend = 'neutral';
             }
         }
