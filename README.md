@@ -2,6 +2,8 @@
 
 一個純前端的技術指標儀表板，用於顯示從 [Taapi.io](https://taapi.io/) API 獲取的 ETH/USDT 交易對的 **KDJ、RSI、MACD** 三大技術指標。
 
+[psar](https://taapi.io/indicators/parabolic-sar/)  
+
 ## ✨ 核心功能
 
 - **三指標顯示**：KDJ、RSI、MACD 三個重要技術指標的即時數據

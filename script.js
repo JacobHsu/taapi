@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, KDJ, RSI, MACD, Squeeze, Supertrend order
+    // Table header - Time, Price, KDJ, RSI, MACD, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ說明', 'RSI說明', 'MACD', 'Signal', 'Hist', 'MACD說明', 'Squeeze', 'PSAR', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -302,6 +302,7 @@ function displayTable(macdData) {
             { text: (typeof item.histValue === 'number' ? item.histValue.toFixed(2) : '0.00'), trend: null },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
+            { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
 
@@ -316,6 +317,18 @@ function displayTable(macdData) {
             } else if (cell.text.includes('KDJ死叉 (K線下穿D線)')) {
                 td.style.color = '#000000'; // Black color for death cross
                 td.style.fontWeight = 'bold';
+            }
+            // Special color handling for PSAR reversal signals
+            else if (cell.text.includes('PSAR反轉')) {
+                if (cell.text.includes('轉多頭')) {
+                    td.style.color = '#FFD700'; // Gold for bullish reversal
+                    td.style.fontWeight = 'bold';
+                    td.style.textDecoration = 'underline'; // Special highlighting for reversal
+                } else if (cell.text.includes('轉空頭')) {
+                    td.style.color = '#FF1493'; // Deep pink for bearish reversal
+                    td.style.fontWeight = 'bold';
+                    td.style.textDecoration = 'underline'; // Special highlighting for reversal
+                }
             }
             // Apply color based on trend for other cases
             else if (cell.trend) {

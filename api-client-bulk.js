@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 6; // Price, KDJ, RSI, MACD, Squeeze, Supertrend
+            const totalSteps = 7; // Price, KDJ, RSI, MACD, Squeeze, PSAR, Supertrend
             let currentStep = 0;
             
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
@@ -110,6 +110,23 @@ class TaapiClientBulk {
             console.log(`Waiting ${delay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, delay));
 
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching PSAR data...');
+            console.log('Fetching PSAR data...');
+            const psarResponse = await fetch(`${this.baseUrl}/sar?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!psarResponse.ok) {
+                const errorText = await psarResponse.text();
+                if (psarResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching PSAR failed: ${psarResponse.status} - ${errorText}`);
+            }
+            const psarData = await psarResponse.json();
+            console.log('PSAR Response:', psarData);
+
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Supertrend data...');
             console.log('Fetching Supertrend data...');
             const supertrendResponse = await fetch(`${this.baseUrl}/supertrend?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
@@ -131,6 +148,7 @@ class TaapiClientBulk {
                     { id: 'rsi', result: rsiData },
                     { id: 'macd', result: macdData },
                     { id: 'squeeze', result: squeezeData },
+                    { id: 'psar', result: psarData },
                     { id: 'supertrend', result: supertrendData }
                 ]
             };
@@ -154,6 +172,7 @@ class TaapiClientBulk {
         const rsiData = bulkResponse.data?.find(item => item.id === 'rsi')?.result || [];
         const macdData = bulkResponse.data?.find(item => item.id === 'macd')?.result || [];
         const squeezeData = bulkResponse.data?.find(item => item.id === 'squeeze')?.result || [];
+        const psarData = bulkResponse.data?.find(item => item.id === 'psar')?.result || [];
         const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
 
         console.log('Extracted Price data:', priceData);
@@ -161,9 +180,10 @@ class TaapiClientBulk {
         console.log('Extracted RSI data:', rsiData);
         console.log('Extracted MACD data:', macdData);
         console.log('Extracted Squeeze data:', squeezeData);
+        console.log('Extracted PSAR data:', psarData);
         console.log('Extracted Supertrend data:', supertrendData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0 && supertrendData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -178,6 +198,7 @@ class TaapiClientBulk {
             rsiValue: 0,
             macdValue: 0, signalValue: 0, histValue: 0,
             squeeze: false,
+            psarValue: 0,
             supertrendAdvice: ''
         });
 
@@ -236,6 +257,16 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process PSAR data - ensure it's an array
+        const psarArray = Array.isArray(psarData) ? psarData : (psarData ? [psarData] : []);
+        psarArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.psarValue = item.value || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Process Supertrend data - ensure it's an array
         const supertrendArray = Array.isArray(supertrendData) ? supertrendData : (supertrendData ? [supertrendData] : []);
         supertrendArray.forEach(item => {
@@ -258,6 +289,7 @@ class TaapiClientBulk {
             const kdjAnalysis = this.analyzeKDJ(item.kValue, item.dValue, item.jValue, previous, kdjArray.length > 0);
             const rsiAnalysis = this.analyzeRSI(item.rsiValue, rsiArray.length > 0);
             const macdAnalysis = this.analyzeMacd(item.macdValue, item.signalValue, previous, macdArray.length > 0);
+            const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
 
             processedData.push({
                 timestamp: item.timestamp,
@@ -282,6 +314,10 @@ class TaapiClientBulk {
                 macdTrend: macdAnalysis.trend,
                 // Squeeze value
                 squeeze: item.squeeze || false,
+                // PSAR values
+                psarValue: parseFloat(item.psarValue) || 0,
+                psarDescription: psarAnalysis.description,
+                psarTrend: psarAnalysis.trend,
                 // Supertrend advice
                 supertrendAdvice: item.supertrendAdvice || ''
             });
@@ -452,6 +488,50 @@ class TaapiClientBulk {
             } else {
                 description = 'MACD中性';
                 trend = 'neutral';
+            }
+        }
+
+        return { description, trend };
+    }
+
+    // Analyze PSAR indicator
+    analyzePSAR(psar, price, previous, hasData) {
+        if (!hasData || !price || !psar) {
+            return { description: 'PSAR數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+        const psarStr = psar.toFixed(2);
+        const priceStr = price.toFixed(2);
+
+        // Determine if price is above or below PSAR
+        const isAbovePSAR = price > psar;
+        
+        if (previous && previous.psarValue !== 0 && previous.price !== 0) {
+            const wasPreviousAbovePSAR = previous.price > previous.psarValue;
+            
+            // Check for reversal
+            if (wasPreviousAbovePSAR && !isAbovePSAR) {
+                description = `PSAR反轉 (轉空頭) (${priceStr}<${psarStr})`;
+                trend = 'bearish_reversal';
+            } else if (!wasPreviousAbovePSAR && isAbovePSAR) {
+                description = `PSAR反轉 (轉多頭) (${priceStr}>${psarStr})`;
+                trend = 'bullish_reversal';
+            } else if (isAbovePSAR) {
+                description = `上漲趨勢 (${priceStr}>${psarStr})`;
+                trend = 'bullish';
+            } else {
+                description = `下跌趨勢 (${priceStr}<${psarStr})`;
+                trend = 'bearish';
+            }
+        } else {
+            if (isAbovePSAR) {
+                description = `上漲趨勢 (${priceStr}>${psarStr})`;
+                trend = 'bullish';
+            } else {
+                description = `下跌趨勢 (${priceStr}<${psarStr})`;
+                trend = 'bearish';
             }
         }
 
