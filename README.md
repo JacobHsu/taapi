@@ -7,6 +7,7 @@
 [keltnerchannels](https://taapi.io/indicators/keltner-channels/)  
 [atr](https://taapi.io/indicators/average-true-range/)  
 [mfi](https://taapi.io/indicators/money-flow-index/)  
+[adx](https://taapi.io/indicators/adx//)  
 
 ## ✨ 核心功能
 

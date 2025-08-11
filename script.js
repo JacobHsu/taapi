@@ -267,7 +267,7 @@ function displayTable(macdData) {
 
     // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'ATR', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'ATR', 'ADX', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -331,6 +331,7 @@ function displayTable(macdData) {
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.mfiDescription || 'MFI中性', trend: item.mfiTrend },
             { text: item.atrDescription || 'ATR中性', trend: item.atrTrend },
+            { text: item.adxDescription || 'ADX中性', trend: item.adxTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
@@ -420,6 +421,21 @@ function displayTable(macdData) {
                     td.style.fontWeight = 'normal';
                 } else if (cell.trend === 'low_volatility') {
                     td.style.color = '#28a745'; // Green for low volatility
+                    td.style.fontWeight = 'normal';
+                } else if (cell.trend === 'strong_bullish') {
+                    td.style.color = '#28a745'; // Green for strong bullish trend
+                    td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'strong_bearish') {
+                    td.style.color = '#dc3545'; // Red for strong bearish trend
+                    td.style.fontWeight = 'bold';
+                } else if (cell.trend === 'weak_bullish') {
+                    td.style.color = '#28a745'; // Green for weak bullish trend
+                    td.style.fontWeight = 'normal';
+                } else if (cell.trend === 'weak_bearish') {
+                    td.style.color = '#dc3545'; // Red for weak bearish trend
+                    td.style.fontWeight = 'normal';
+                } else if (cell.trend === 'sideways') {
+                    td.style.color = '#6c757d'; // Gray for sideways trend
                     td.style.fontWeight = 'normal';
                 }
             }

@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 11; // Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend, MFI, ATR
+            const totalSteps = 12; // Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend, MFI, ATR, ADX
             let currentStep = 0;
             
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
@@ -208,6 +208,23 @@ class TaapiClientBulk {
             const atrData = await atrResponse.json();
             console.log('ATR Response:', atrData);
 
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching ADX data...');
+            console.log('Fetching ADX data...');
+            const adxResponse = await fetch(`${this.baseUrl}/adx?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!adxResponse.ok) {
+                const errorText = await adxResponse.text();
+                if (adxResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching ADX failed: ${adxResponse.status} - ${errorText}`);
+            }
+            const adxData = await adxResponse.json();
+            console.log('ADX Response:', adxData);
+
             // Construct the final object for processing
             const finalBulkResponse = {
                 data: [
@@ -221,7 +238,8 @@ class TaapiClientBulk {
                     { id: 'psar', result: psarData },
                     { id: 'supertrend', result: supertrendData },
                     { id: 'mfi', result: mfiData },
-                    { id: 'atr', result: atrData }
+                    { id: 'atr', result: atrData },
+                    { id: 'adx', result: adxData }
                 ]
             };
 
@@ -250,6 +268,7 @@ class TaapiClientBulk {
         const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
         const mfiData = bulkResponse.data?.find(item => item.id === 'mfi')?.result || [];
         const atrData = bulkResponse.data?.find(item => item.id === 'atr')?.result || [];
+        const adxData = bulkResponse.data?.find(item => item.id === 'adx')?.result || [];
 
         console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
@@ -262,8 +281,9 @@ class TaapiClientBulk {
         console.log('Extracted Supertrend data:', supertrendData);
         console.log('Extracted MFI data:', mfiData);
         console.log('Extracted ATR data:', atrData);
+        console.log('Extracted ADX data:', adxData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0 && mfiData.length === 0 && atrData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0 && mfiData.length === 0 && atrData.length === 0 && adxData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -283,7 +303,8 @@ class TaapiClientBulk {
             psarValue: 0,
             supertrendAdvice: '',
             mfiValue: 0,
-            atrValue: 0
+            atrValue: 0,
+            adxValue: 0, diPlusValue: 0, diMinusValue: 0
         });
 
         // Process Price data - ensure it's an array
@@ -405,6 +426,18 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process ADX data - ensure it's an array
+        const adxArray = Array.isArray(adxData) ? adxData : (adxData ? [adxData] : []);
+        adxArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.adxValue = item.valueAdx || item.adx || 0;
+            point.diPlusValue = item.valueDiPlus || item.diPlus || 0;
+            point.diMinusValue = item.valueDiMinus || item.diMinus || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Convert map to array and sort by timestamp descending (newest first)
         let combinedData = Array.from(dataMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -422,6 +455,7 @@ class TaapiClientBulk {
             const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
             const mfiAnalysis = this.analyzeMFI(item.mfiValue, mfiArray.length > 0);
             const atrAnalysis = this.analyzeATR(item.atrValue, atrArray.length > 0);
+            const adxAnalysis = this.analyzeADX(item.adxValue, item.diPlusValue, item.diMinusValue, adxArray.length > 0);
 
             processedData.push({
                 timestamp: item.timestamp,
@@ -471,7 +505,13 @@ class TaapiClientBulk {
                 // ATR values
                 atrValue: parseFloat(item.atrValue) || 0,
                 atrDescription: atrAnalysis.description,
-                atrTrend: atrAnalysis.trend
+                atrTrend: atrAnalysis.trend,
+                // ADX values
+                adxValue: parseFloat(item.adxValue) || 0,
+                diPlusValue: parseFloat(item.diPlusValue) || 0,
+                diMinusValue: parseFloat(item.diMinusValue) || 0,
+                adxDescription: adxAnalysis.description,
+                adxTrend: adxAnalysis.trend
             });
         }
 
@@ -579,22 +619,22 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
-        const rsiStr = rsi.toFixed(2);
+        const rsiInt = Math.round(rsi);
 
         if (rsi >= 70) {
-            description = `RSI超買 (≥70)(${rsiStr})`;
+            description = `RSI超買(>${rsiInt})`;
             trend = 'overbought';
         } else if (rsi <= 30) {
-            description = `RSI超賣 (≤30)(${rsiStr})`;
+            description = `RSI超賣(<${rsiInt})`;
             trend = 'oversold';
         } else if (rsi > 50) {
-            description = `RSI偏多 (>50)(${rsiStr})`;
+            description = `RSI偏多(>${rsiInt})`;
             trend = 'bullish';
         } else if (rsi < 50) {
-            description = `RSI偏空 (<50)(${rsiStr})`;
+            description = `RSI偏空(<${rsiInt})`;
             trend = 'bearish';
         } else {
-            description = `RSI中性 (≈50)(${rsiStr})`;
+            description = `RSI中性(≈${rsiInt})`;
             trend = 'neutral';
         }
 
@@ -819,6 +859,53 @@ class TaapiClientBulk {
         } else {
             description = `低波動 (ATR:${atrStr})`;
             trend = 'low_volatility';
+        }
+
+        return { description, trend };
+    }
+
+    // Analyze ADX indicator
+    analyzeADX(adx, diPlus, diMinus, hasData) {
+        if (!hasData) {
+            return { description: 'ADX數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+        const adxStr = adx.toFixed(2);
+        const diPlusStr = diPlus.toFixed(2);
+        const diMinusStr = diMinus.toFixed(2);
+
+        // Determine trend strength based on ADX value
+        let strength = '';
+        if (adx >= 50) {
+            strength = '極強';
+        } else if (adx >= 25) {
+            strength = '強勢';
+        } else if (adx >= 20) {
+            strength = '中等';
+        } else {
+            strength = '弱勢';
+        }
+
+        // Determine trend direction based on DI+ and DI-
+        if (diPlus > diMinus) {
+            description = `上漲${strength} ADX:${adxStr} (DI+:${diPlusStr}>DI-:${diMinusStr})`;
+            if (adx >= 25) {
+                trend = 'strong_bullish';
+            } else {
+                trend = 'weak_bullish';
+            }
+        } else if (diMinus > diPlus) {
+            description = `下跌${strength} ADX:${adxStr} (DI-:${diMinusStr}>DI+:${diPlusStr})`;
+            if (adx >= 25) {
+                trend = 'strong_bearish';
+            } else {
+                trend = 'weak_bearish';
+            }
+        } else {
+            description = `盤整${strength} ADX:${adxStr} (DI+:${diPlusStr}≈DI-:${diMinusStr})`;
+            trend = 'sideways';
         }
 
         return { description, trend };
