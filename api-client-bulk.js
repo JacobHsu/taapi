@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 9; // Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend
+            const totalSteps = 11; // Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend, MFI, ATR
             let currentStep = 0;
             
             if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
@@ -174,6 +174,40 @@ class TaapiClientBulk {
             const supertrendData = await supertrendResponse.json();
             console.log('Supertrend Response:', supertrendData);
 
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching MFI data...');
+            console.log('Fetching MFI data...');
+            const mfiResponse = await fetch(`${this.baseUrl}/mfi?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!mfiResponse.ok) {
+                const errorText = await mfiResponse.text();
+                if (mfiResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching MFI failed: ${mfiResponse.status} - ${errorText}`);
+            }
+            const mfiData = await mfiResponse.json();
+            console.log('MFI Response:', mfiData);
+
+            // Wait for a configurable delay
+            console.log(`Waiting ${delay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching ATR data...');
+            console.log('Fetching ATR data...');
+            const atrResponse = await fetch(`${this.baseUrl}/atr?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+            if (!atrResponse.ok) {
+                const errorText = await atrResponse.text();
+                if (atrResponse.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Fetching ATR failed: ${atrResponse.status} - ${errorText}`);
+            }
+            const atrData = await atrResponse.json();
+            console.log('ATR Response:', atrData);
+
             // Construct the final object for processing
             const finalBulkResponse = {
                 data: [
@@ -185,7 +219,9 @@ class TaapiClientBulk {
                     { id: 'keltner', result: keltnerData },
                     { id: 'squeeze', result: squeezeData },
                     { id: 'psar', result: psarData },
-                    { id: 'supertrend', result: supertrendData }
+                    { id: 'supertrend', result: supertrendData },
+                    { id: 'mfi', result: mfiData },
+                    { id: 'atr', result: atrData }
                 ]
             };
 
@@ -212,6 +248,8 @@ class TaapiClientBulk {
         const squeezeData = bulkResponse.data?.find(item => item.id === 'squeeze')?.result || [];
         const psarData = bulkResponse.data?.find(item => item.id === 'psar')?.result || [];
         const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
+        const mfiData = bulkResponse.data?.find(item => item.id === 'mfi')?.result || [];
+        const atrData = bulkResponse.data?.find(item => item.id === 'atr')?.result || [];
 
         console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
@@ -222,8 +260,10 @@ class TaapiClientBulk {
         console.log('Extracted Squeeze data:', squeezeData);
         console.log('Extracted PSAR data:', psarData);
         console.log('Extracted Supertrend data:', supertrendData);
+        console.log('Extracted MFI data:', mfiData);
+        console.log('Extracted ATR data:', atrData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && squeezeData.length === 0 && psarData.length === 0 && supertrendData.length === 0 && mfiData.length === 0 && atrData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -241,7 +281,9 @@ class TaapiClientBulk {
             keltnerUpper: 0, keltnerMiddle: 0, keltnerLower: 0,
             squeeze: false,
             psarValue: 0,
-            supertrendAdvice: ''
+            supertrendAdvice: '',
+            mfiValue: 0,
+            atrValue: 0
         });
 
         // Process Price data - ensure it's an array
@@ -343,6 +385,26 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process MFI data - ensure it's an array
+        const mfiArray = Array.isArray(mfiData) ? mfiData : (mfiData ? [mfiData] : []);
+        mfiArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.mfiValue = item.value || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
+        // Process ATR data - ensure it's an array
+        const atrArray = Array.isArray(atrData) ? atrData : (atrData ? [atrData] : []);
+        atrArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            point.atrValue = item.value || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Convert map to array and sort by timestamp descending (newest first)
         let combinedData = Array.from(dataMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -358,6 +420,8 @@ class TaapiClientBulk {
             const bbandsAnalysis = this.analyzeBBands(item.bbandsUpper, item.bbandsMiddle, item.bbandsLower, item.price, bbandsArray.length > 0);
             const keltnerAnalysis = this.analyzeKeltnerChannels(item.keltnerUpper, item.keltnerMiddle, item.keltnerLower, item.price, keltnerArray.length > 0);
             const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
+            const mfiAnalysis = this.analyzeMFI(item.mfiValue, mfiArray.length > 0);
+            const atrAnalysis = this.analyzeATR(item.atrValue, atrArray.length > 0);
 
             processedData.push({
                 timestamp: item.timestamp,
@@ -399,7 +463,15 @@ class TaapiClientBulk {
                 psarDescription: psarAnalysis.description,
                 psarTrend: psarAnalysis.trend,
                 // Supertrend advice
-                supertrendAdvice: item.supertrendAdvice || ''
+                supertrendAdvice: item.supertrendAdvice || '',
+                // MFI values
+                mfiValue: parseFloat(item.mfiValue) || 0,
+                mfiDescription: mfiAnalysis.description,
+                mfiTrend: mfiAnalysis.trend,
+                // ATR values
+                atrValue: parseFloat(item.atrValue) || 0,
+                atrDescription: atrAnalysis.description,
+                atrTrend: atrAnalysis.trend
             });
         }
 
@@ -661,8 +733,8 @@ class TaapiClientBulk {
 
         let description = '';
         let trend = 'neutral';
-        const psarStr = psar.toFixed(2);
-        const priceStr = price.toFixed(2);
+        const psarStr = Math.round(psar).toString();
+        const priceStr = Math.round(price).toString();
 
         // Determine if price is above or below PSAR
         const isAbovePSAR = price > psar;
@@ -692,6 +764,61 @@ class TaapiClientBulk {
                 description = `下跌趨勢 (${priceStr}<${psarStr})`;
                 trend = 'bearish';
             }
+        }
+
+        return { description, trend };
+    }
+
+    // Analyze MFI indicator
+    analyzeMFI(mfi, hasData) {
+        if (!hasData) {
+            return { description: 'MFI數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+        const mfiStr = mfi.toFixed(2);
+
+        if (mfi >= 80) {
+            description = `MFI超買 (≥80)(${mfiStr})`;
+            trend = 'overbought';
+        } else if (mfi <= 20) {
+            description = `MFI超賣 (≤20)(${mfiStr})`;
+            trend = 'oversold';
+        } else if (mfi > 50) {
+            description = `MFI偏多 (>50)(${mfiStr})`;
+            trend = 'bullish';
+        } else if (mfi < 50) {
+            description = `MFI偏空 (<50)(${mfiStr})`;
+            trend = 'bearish';
+        } else {
+            description = `MFI中性 (≈50)(${mfiStr})`;
+            trend = 'neutral';
+        }
+
+        return { description, trend };
+    }
+
+    // Analyze ATR indicator
+    analyzeATR(atr, hasData) {
+        if (!hasData) {
+            return { description: 'ATR數據未獲取', trend: 'neutral' };
+        }
+
+        let description = '';
+        let trend = 'neutral';
+        const atrStr = atr.toFixed(2);
+
+        // ATR is a volatility indicator, higher values indicate higher volatility
+        if (atr > 100) {
+            description = `高波動 (ATR:${atrStr})`;
+            trend = 'high_volatility';
+        } else if (atr > 50) {
+            description = `中等波動 (ATR:${atrStr})`;
+            trend = 'medium_volatility';
+        } else {
+            description = `低波動 (ATR:${atrStr})`;
+            trend = 'low_volatility';
         }
 
         return { description, trend };
