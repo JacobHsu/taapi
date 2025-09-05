@@ -267,7 +267,7 @@ function displayTable(macdData) {
 
     // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'ATR', 'ADX', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'ATR', 'DMI', 'Squeeze', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -331,7 +331,7 @@ function displayTable(macdData) {
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.mfiDescription || 'MFI中性', trend: item.mfiTrend },
             { text: item.atrDescription || 'ATR中性', trend: item.atrTrend },
-            { text: item.adxDescription || 'ADX中性', trend: item.adxTrend },
+            { text: item.dmiDescription || 'DMI中性', trend: item.dmiTrend },
             { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];

@@ -1,7 +1,7 @@
 {
   "name": "eth-technical-indicators",
   "version": "1.0.0",
-  "description": "ETH/USDT Technical Indicators Dashboard with KDJ, RSI, MACD",
+  "description": "ETH/USDT Technical Indicators Dashboard with KDJ, RSI, MACD, DMI",
   "scripts": {
     "build": "node build.js",
     "dev": "python -m http.server 8000 || php -S localhost:8000 || live-server"
