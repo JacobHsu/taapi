@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, Squeeze, PSAR, Supertrend order
+    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, PSAR, Supertrend order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'ATR', 'DMI', 'Squeeze', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'DMI', 'Supertrend'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -330,9 +330,7 @@ function displayTable(macdData) {
             { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.mfiDescription || 'MFI中性', trend: item.mfiTrend },
-            { text: item.atrDescription || 'ATR中性', trend: item.atrTrend },
             { text: item.dmiDescription || 'DMI中性', trend: item.dmiTrend },
-            { text: item.squeeze ? 'True' : 'False', trend: item.squeeze ? 'squeeze' : null },
             { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
         ];
 
@@ -392,9 +390,6 @@ function displayTable(macdData) {
                 } else if (cell.trend === 'oversold') {
                     td.style.color = '#6f42c1'; // Purple for oversold
                     td.style.fontWeight = 'bold';
-                } else if (cell.trend === 'squeeze') {
-                    td.style.color = '#17a2b8'; // Cyan for squeeze
-                    td.style.fontWeight = 'bold';
                 } else if (cell.trend === 'supertrend') {
                     // Color based on Supertrend advice
                     if (cell.text.toLowerCase().includes('buy') || cell.text.toLowerCase().includes('long')) {
@@ -413,15 +408,6 @@ function displayTable(macdData) {
                 } else if (cell.trend === 'price_down') {
                     td.style.color = '#dc3545'; // Red for price decrease
                     td.style.fontWeight = 'bold';
-                } else if (cell.trend === 'high_volatility') {
-                    td.style.color = '#dc3545'; // Red for high volatility
-                    td.style.fontWeight = 'bold';
-                } else if (cell.trend === 'medium_volatility') {
-                    td.style.color = '#fd7e14'; // Orange for medium volatility
-                    td.style.fontWeight = 'normal';
-                } else if (cell.trend === 'low_volatility') {
-                    td.style.color = '#28a745'; // Green for low volatility
-                    td.style.fontWeight = 'normal';
                 } else if (cell.trend === 'strong_bullish') {
                     td.style.color = '#28a745'; // Green for strong bullish trend
                     td.style.fontWeight = 'bold';
