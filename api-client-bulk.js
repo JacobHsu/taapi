@@ -5,9 +5,9 @@ class TaapiClientBulk {
         this.baseUrl = 'https://api.taapi.io';
     }
 
-    // Fetch initial historical data (5 records)
+    // Fetch initial historical data (1 record only to save API quota)
     async fetchInitialData(symbol = 'ETH/USDT', interval = '1h', progressCallback = null) {
-        return this.fetchIndicatorsWithBacktracks(symbol, interval, 5, progressCallback);
+        return this.fetchIndicatorsWithBacktracks(symbol, interval, 1, progressCallback);
     }
 
     // Fetch latest data only (1 record)
@@ -20,70 +20,86 @@ class TaapiClientBulk {
         return this.fetchLatestData(symbol, interval, progressCallback);
     }
 
-    // Core method to fetch data with specified backtracks using true Bulk API
+    // Core method to fetch data with specified backtracks using sequential API calls
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 2; // 1 bulk request + processing
+            const totalSteps = 9; // 9 indicators
+            let currentStep = 0;
+            const delay = window.CONFIG?.API_DELAY_MS || 15000;
 
-            if (progressCallback) progressCallback(1, totalSteps, '正在獲取所有指標數據...');
-            console.log('Fetching all indicators via Bulk API...');
+            // Helper function to fetch a single indicator
+            const fetchIndicator = async (endpoint, name) => {
+                if (progressCallback) progressCallback(++currentStep, totalSteps, `正在獲取 ${name}...`);
+                console.log(`Fetching ${name}...`);
 
-            // Build the bulk request payload
-            const bulkPayload = {
-                secret: this.apiKey,
-                construct: {
-                    exchange: 'binance',
-                    symbol: symbol,
-                    interval: interval,
-                    backtracks: backtracks,
-                    addResultTimestamp: true
-                },
-                indicator: 'price',
-                results: backtracks,
-                indicators: [
-                    { id: 'price', indicator: 'price' },
-                    { id: 'kdj', indicator: 'stoch' },
-                    { id: 'rsi', indicator: 'rsi' },
-                    { id: 'macd', indicator: 'macd' },
-                    { id: 'bbands', indicator: 'bbands' },
-                    { id: 'keltner', indicator: 'keltnerchannels' },
-                    { id: 'psar', indicator: 'sar' },
-                    { id: 'supertrend', indicator: 'supertrend' },
-                    { id: 'mfi', indicator: 'mfi' },
-                    { id: 'dmi', indicator: 'dmi' }
+                const response = await fetch(`${this.baseUrl}/${endpoint}?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (response.status === 429) {
+                        throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                    }
+                    throw new Error(`Fetching ${name} failed: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log(`${name} Response:`, data);
+                return data;
+            };
+
+            // Helper function to wait
+            const wait = async () => {
+                console.log(`Waiting ${delay / 1000} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            };
+
+            // Fetch all indicators sequentially with delays
+            const priceData = await fetchIndicator('price', 'Price');
+            await wait();
+
+            const kdjData = await fetchIndicator('stoch', 'KDJ');
+            await wait();
+
+            const rsiData = await fetchIndicator('rsi', 'RSI');
+            await wait();
+
+            const macdData = await fetchIndicator('macd', 'MACD');
+            await wait();
+
+            const psarData = await fetchIndicator('sar', 'PSAR');
+            await wait();
+
+            const supertrendData = await fetchIndicator('supertrend', 'Supertrend');
+            await wait();
+
+            const mfiData = await fetchIndicator('mfi', 'MFI');
+            await wait();
+
+            const dmiData = await fetchIndicator('dmi', 'DMI');
+            await wait();
+
+            const fibonacciData = await fetchIndicator('fibonacciretracement', 'Fibonacci');
+
+            // Construct the final object for processing
+            const finalBulkResponse = {
+                data: [
+                    { id: 'price', result: priceData },
+                    { id: 'kdj', result: kdjData },
+                    { id: 'rsi', result: rsiData },
+                    { id: 'macd', result: macdData },
+                    { id: 'psar', result: psarData },
+                    { id: 'supertrend', result: supertrendData },
+                    { id: 'mfi', result: mfiData },
+                    { id: 'dmi', result: dmiData },
+                    { id: 'fibonacci', result: fibonacciData }
                 ]
             };
 
-            const response = await fetch(`${this.baseUrl}/bulk`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(bulkPayload)
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                if (response.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Bulk API request failed: ${response.status} - ${errorText}`);
-            }
-
-            const bulkData = await response.json();
-            console.log('Bulk API Response:', bulkData);
-
-            // Transform the bulk response to match our expected format
-            const finalBulkResponse = {
-                data: bulkData.data || []
-            };
-
-            if (progressCallback) progressCallback(totalSteps, totalSteps, '處理數據中...');
-            console.log('Parsed Bulk API response:', finalBulkResponse);
+            console.log('All indicators fetched successfully');
             return this.processBulkData(finalBulkResponse);
 
         } catch (error) {
-            console.error('Error fetching indicators via Bulk API:', error);
+            console.error('Error fetching indicators sequentially:', error);
             throw error;
         }
     }
@@ -102,6 +118,7 @@ class TaapiClientBulk {
         const supertrendData = bulkResponse.data?.find(item => item.id === 'supertrend')?.result || [];
         const mfiData = bulkResponse.data?.find(item => item.id === 'mfi')?.result || [];
         const dmiData = bulkResponse.data?.find(item => item.id === 'dmi')?.result || [];
+        const fibonacciData = bulkResponse.data?.find(item => item.id === 'fibonacci')?.result || [];
 
         console.log('Extracted Price data:', priceData);
         console.log('Extracted KDJ data:', kdjData);
@@ -113,8 +130,9 @@ class TaapiClientBulk {
         console.log('Extracted Supertrend data:', supertrendData);
         console.log('Extracted MFI data:', mfiData);
         console.log('Extracted DMI data:', dmiData);
+        console.log('Extracted Fibonacci data:', fibonacciData);
 
-        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && psarData.length === 0 && supertrendData.length === 0 && mfiData.length === 0 && dmiData.length === 0) {
+        if (priceData.length === 0 && kdjData.length === 0 && rsiData.length === 0 && macdData.length === 0 && bbandsData.length === 0 && keltnerData.length === 0 && psarData.length === 0 && supertrendData.length === 0 && mfiData.length === 0 && dmiData.length === 0 && fibonacciData.length === 0) {
             throw new Error('No indicator data found in response');
         }
 
@@ -133,7 +151,8 @@ class TaapiClientBulk {
             psarValue: 0,
             supertrendAdvice: '',
             mfiValue: 0,
-            adxValue: 0, pdiValue: 0, mdiValue: 0
+            adxValue: 0, pdiValue: 0, mdiValue: 0,
+            fibValue: 0, fibCurrentPrice: 0, fibTrend: '', fibStartPrice: 0, fibEndPrice: 0
         });
 
         // Process Price data - ensure it's an array
@@ -247,6 +266,33 @@ class TaapiClientBulk {
             dataMap.set(item.timestamp, point);
         });
 
+        // Process Fibonacci data - ensure it's an array
+        const fibonacciArray = Array.isArray(fibonacciData) ? fibonacciData : (fibonacciData ? [fibonacciData] : []);
+        fibonacciArray.forEach(item => {
+            if (!item.timestamp) return;
+            const point = dataMap.get(item.timestamp) || initDataPoint(item.timestamp);
+            // Note: item.value is the current price, not retracement percentage
+            // We need to calculate the retracement percentage ourselves
+            const range = Math.abs(item.endPrice - item.startPrice);
+            let retracementPct = 0;
+            if (range > 0) {
+                if (item.trend === 'UPTREND') {
+                    // Uptrend: how much price dropped from endPrice (high)
+                    retracementPct = (item.endPrice - item.value) / range;
+                } else {
+                    // Downtrend: how much price rose from endPrice (low)
+                    retracementPct = (item.value - item.endPrice) / range;
+                }
+            }
+            point.fibValue = retracementPct; // Now this is 0~1 percentage
+            point.fibCurrentPrice = item.value || 0; // Store actual current price
+            point.fibTrend = item.trend || '';
+            point.fibStartPrice = item.startPrice || 0;
+            point.fibEndPrice = item.endPrice || 0;
+            point.backtrack = item.backtrack !== undefined ? item.backtrack : point.backtrack;
+            dataMap.set(item.timestamp, point);
+        });
+
         // Convert map to array and sort by timestamp descending (newest first)
         let combinedData = Array.from(dataMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
@@ -264,6 +310,7 @@ class TaapiClientBulk {
             const psarAnalysis = this.analyzePSAR(item.psarValue, item.price, previous, psarArray.length > 0);
             const mfiAnalysis = this.analyzeMFI(item.mfiValue, mfiArray.length > 0);
             const dmiAnalysis = this.analyzeDMI(item.adxValue, item.pdiValue, item.mdiValue, dmiArray.length > 0);
+            const fibAnalysis = this.analyzeFibonacci(item.fibValue, item.fibTrend, item.fibStartPrice, item.fibEndPrice, item.price, fibonacciArray.length > 0);
 
             processedData.push({
                 timestamp: item.timestamp,
@@ -313,7 +360,15 @@ class TaapiClientBulk {
                 pdiValue: parseFloat(item.pdiValue) || 0,
                 mdiValue: parseFloat(item.mdiValue) || 0,
                 dmiDescription: dmiAnalysis.description,
-                dmiTrend: dmiAnalysis.trend
+                dmiTrend: dmiAnalysis.trend,
+                // Fibonacci values
+                fibValue: parseFloat(item.fibValue) || 0,
+                fibCurrentPrice: parseFloat(item.fibCurrentPrice) || 0,
+                fibTrend: item.fibTrend || '',
+                fibStartPrice: parseFloat(item.fibStartPrice) || 0,
+                fibEndPrice: parseFloat(item.fibEndPrice) || 0,
+                fibDescription: fibAnalysis.description,
+                fibTrendAnalysis: fibAnalysis.trend
             });
         }
 
@@ -684,6 +739,75 @@ class TaapiClientBulk {
             description = `盤整${strength} ADX:${adxStr} (PDI:${pdiStr}≈MDI:${mdiStr})`;
             trend = 'sideways';
         }
+
+        return { description, trend };
+    }
+
+    // Analyze Fibonacci Retracement indicator
+    analyzeFibonacci(fibValue, fibTrend, startPrice, endPrice, currentPrice, hasData) {
+        if (!hasData || !startPrice || !endPrice) {
+            return { description: 'Fib數據未獲取', trend: 'neutral', levels: null };
+        }
+
+        const isUptrend = fibTrend === 'UPTREND';
+        const range = Math.abs(endPrice - startPrice);
+        const fmt = (p) => Math.round(p);
+        const fibPct = (fibValue * 100).toFixed(1);
+
+        let description = '';
+        let trend = 'neutral';
+
+        // 計算下一個支撐/阻力價格
+        let nextSupport = 0;
+        let nextResistance = 0;
+
+        if (isUptrend) {
+            // 上升趨勢：高點 endPrice，低點 startPrice
+            // 支撐在下方，阻力在上方
+            nextResistance = endPrice; // 前高
+            if (fibValue <= 0.382) {
+                nextSupport = endPrice - range * 0.382;
+            } else if (fibValue <= 0.5) {
+                nextSupport = endPrice - range * 0.5;
+            } else if (fibValue <= 0.618) {
+                nextSupport = endPrice - range * 0.618;
+            } else {
+                nextSupport = startPrice; // 前低
+            }
+        } else {
+            // 下降趨勢：低點 endPrice，高點 startPrice
+            // 阻力在上方，支撐在下方
+            nextSupport = endPrice; // 前低
+            if (fibValue <= 0.382) {
+                nextResistance = endPrice + range * 0.382;
+            } else if (fibValue <= 0.5) {
+                nextResistance = endPrice + range * 0.5;
+            } else if (fibValue <= 0.618) {
+                nextResistance = endPrice + range * 0.618;
+            } else {
+                nextResistance = startPrice; // 前高
+            }
+        }
+
+        // 判斷趨勢強度
+        if (fibValue <= 0.382) {
+            trend = isUptrend ? 'bullish' : 'bearish';
+        } else if (fibValue <= 0.618) {
+            trend = 'neutral';
+        } else {
+            trend = isUptrend ? 'bearish' : 'bullish';
+        }
+
+        // 計算距離 S 和 R 哪個比較近
+        // currentPrice 是從 processBulkData 傳入的 (item.price 或 fibCurrentPrice)
+        const price = currentPrice || (isUptrend ? endPrice - range * fibValue : endPrice + range * fibValue);
+        const distToS = Math.abs(price - nextSupport);
+        const distToR = Math.abs(price - nextResistance);
+        const nearS = distToS <= distToR;
+
+        // 顯示：近支撐位/近阻力位 | S:價格 | R:價格
+        const nearLabel = nearS ? '近支撐位' : '近阻力位';
+        description = `${nearLabel} S:$${fmt(nextSupport)} R:$${fmt(nextResistance)}`;
 
         return { description, trend };
     }

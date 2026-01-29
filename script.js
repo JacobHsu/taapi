@@ -265,9 +265,9 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, PSAR, Supertrend order
+    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, PSAR, Supertrend, Fibonacci order
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'Keltner', 'BBands', 'MACD', 'MFI', 'DMI', 'Supertrend'].forEach(text => {
+    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'MACD', 'MFI', 'DMI', 'Supertrend', 'Fibonacci'].forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -326,12 +326,11 @@ function displayTable(macdData) {
             { text: item.kdjDescription || 'KDJ中性', trend: item.kdjTrend },
             { text: item.rsiDescription || 'RSI中性', trend: item.rsiTrend },
             { text: item.psarDescription || 'PSAR中性', trend: item.psarTrend },
-            { text: item.keltnerDescription || 'Keltner中性', trend: item.keltnerTrend },
-            { text: item.bbandsDescription || 'BBands中性', trend: item.bbandsTrend },
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.mfiDescription || 'MFI中性', trend: item.mfiTrend },
             { text: item.dmiDescription || 'DMI中性', trend: item.dmiTrend },
-            { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null }
+            { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null },
+            { text: item.fibDescription || 'Fib中性', trend: item.fibTrendAnalysis }
         ];
 
         cells.forEach(cell => {
