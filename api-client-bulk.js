@@ -23,7 +23,7 @@ class TaapiClientBulk {
     // Core method to fetch data with specified backtracks using sequential API calls
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 9; // 9 indicators
+            const totalSteps = 8; // 8 indicators (removed Supertrend)
             let currentStep = 0;
             const delay = window.CONFIG?.API_DELAY_MS || 15000;
 
@@ -53,9 +53,22 @@ class TaapiClientBulk {
                 await new Promise(resolve => setTimeout(resolve, delay));
             };
 
-            // Fetch all indicators sequentially with delays
-            const priceData = await fetchIndicator('price', 'Price');
-            await wait();
+            // Fetch price from Binance API (free, no rate limit)
+            if (progressCallback) progressCallback(++currentStep, totalSteps, '正在獲取 Price (Binance)...');
+            console.log('Fetching Price from Binance...');
+            const binanceSymbol = symbol.replace('/', '');
+            const binanceResponse = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=1`);
+            if (!binanceResponse.ok) {
+                throw new Error(`Binance API failed: ${binanceResponse.status}`);
+            }
+            const binanceKline = await binanceResponse.json();
+            // Binance kline format: [openTime, open, high, low, close, volume, closeTime, ...]
+            const priceData = binanceKline.map(k => ({
+                timestamp: Math.floor(k[0] / 1000), // Convert ms to seconds
+                value: parseFloat(k[4]) // Close price
+            }));
+            console.log('Binance Price Response:', priceData);
+            // No wait needed - Binance has no rate limit for this
 
             const kdjData = await fetchIndicator('stoch', 'KDJ');
             await wait();
@@ -67,9 +80,6 @@ class TaapiClientBulk {
             await wait();
 
             const psarData = await fetchIndicator('sar', 'PSAR');
-            await wait();
-
-            const supertrendData = await fetchIndicator('supertrend', 'Supertrend');
             await wait();
 
             const mfiData = await fetchIndicator('mfi', 'MFI');
@@ -88,7 +98,6 @@ class TaapiClientBulk {
                     { id: 'rsi', result: rsiData },
                     { id: 'macd', result: macdData },
                     { id: 'psar', result: psarData },
-                    { id: 'supertrend', result: supertrendData },
                     { id: 'mfi', result: mfiData },
                     { id: 'dmi', result: dmiData },
                     { id: 'fibonacci', result: fibonacciData }
@@ -368,7 +377,12 @@ class TaapiClientBulk {
                 fibStartPrice: parseFloat(item.fibStartPrice) || 0,
                 fibEndPrice: parseFloat(item.fibEndPrice) || 0,
                 fibDescription: fibAnalysis.description,
-                fibTrendAnalysis: fibAnalysis.trend
+                fibTrendAnalysis: fibAnalysis.trend,
+                fibSupportPrice: fibAnalysis.supportPrice || 0,
+                fibResistancePrice: fibAnalysis.resistancePrice || 0,
+                fibSColor: fibAnalysis.sColor || 'gray',
+                fibRColor: fibAnalysis.rColor || 'gray',
+                fibNearS: fibAnalysis.nearS
             });
         }
 
@@ -807,9 +821,24 @@ class TaapiClientBulk {
 
         // 顯示：近支撐位/近阻力位 | S:價格 | R:價格
         const nearLabel = nearS ? '近支撐位' : '近阻力位';
+
+        // 根據趨勢決定 S 和 R 的顏色
+        // 上升趨勢：S=綠(支撐有效)，R=紅(阻力)
+        // 下降趨勢：S=紅(支撐可能破)，R=綠(反彈目標)
+        const sColor = isUptrend ? 'green' : 'red';
+        const rColor = isUptrend ? 'red' : 'green';
+
         description = `${nearLabel} S:$${fmt(nextSupport)} R:$${fmt(nextResistance)}`;
 
-        return { description, trend };
+        return {
+            description,
+            trend,
+            supportPrice: fmt(nextSupport),
+            resistancePrice: fmt(nextResistance),
+            sColor,
+            rColor,
+            nearS
+        };
     }
 }
 

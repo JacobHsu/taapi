@@ -265,11 +265,28 @@ function displayTable(macdData) {
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    // Table header - Time, Price, KDJ, RSI, MACD, BBands, Keltner Channels, PSAR, Supertrend, Fibonacci order
+    // Table header with tooltips for beginners
     const headerRow = document.createElement('tr');
-    ['時間', '價格', 'KDJ', 'RSI', 'PSAR', 'MACD', 'MFI', 'DMI', 'Supertrend', 'Fibonacci'].forEach(text => {
+    const headers = [
+        { name: '時間', fullName: '', tip: '' },
+        { name: '價格', fullName: 'Price', tip: '當前收盤價與漲跌幅' },
+        { name: 'KDJ', fullName: 'Stochastic', tip: '隨機指標：K>D看漲，K<D看跌\n金叉=買入信號，死叉=賣出信號' },
+        { name: 'RSI', fullName: 'Relative Strength Index', tip: '相對強弱指標(0-100)\n>70超買(可能下跌)\n<30超賣(可能上漲)' },
+        { name: 'PSAR', fullName: 'Parabolic SAR', tip: '拋物線SAR：判斷趨勢方向\n價格>SAR=上漲趨勢\n價格<SAR=下跌趨勢' },
+        { name: 'MACD', fullName: 'Moving Average Convergence Divergence', tip: '趨勢動能指標\nMACD>Signal看漲\nMACD<Signal看跌\n金叉=買，死叉=賣' },
+        { name: 'MFI', fullName: 'Money Flow Index', tip: '資金流量指標(0-100)\n>80超買，<20超賣\n結合價格和成交量判斷' },
+        { name: 'DMI', fullName: 'Directional Movement Index', tip: '趨向指標\nPDI>MDI=上漲趨勢\nMDI>PDI=下跌趨勢\nADX>25=趨勢強勁' },
+        { name: 'Fibonacci', fullName: 'Fibonacci Retracement', tip: '斐波那契回調\n顯示支撐(S)和阻力(R)價位\n近支撐位=可能反彈\n近阻力位=可能回落' }
+    ];
+
+    headers.forEach(header => {
         const th = document.createElement('th');
-        th.textContent = text;
+        if (header.fullName) {
+            const fullTip = `【${header.fullName}】\n${header.tip}`;
+            th.innerHTML = `${header.name} <span class="info-icon" title="${fullTip.replace(/\n/g, '&#10;')}">ⓘ</span>`;
+        } else {
+            th.textContent = header.name;
+        }
         headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -319,6 +336,14 @@ function displayTable(macdData) {
             priceText = '載入中...';
         }
 
+        // Build Fibonacci cell with colored S and R
+        const fibNearLabel = item.fibNearS ? '近支撐位' : '近阻力位';
+        const fibSColorStyle = item.fibSColor === 'green' ? '#28a745' : '#dc3545';
+        const fibRColorStyle = item.fibRColor === 'green' ? '#28a745' : '#dc3545';
+        const fibHtml = item.fibSupportPrice
+            ? `${fibNearLabel} <span style="color:${fibSColorStyle};font-weight:bold">S:$${item.fibSupportPrice}</span> <span style="color:${fibRColorStyle};font-weight:bold">R:$${item.fibResistancePrice}</span>`
+            : 'Fib中性';
+
         // Create cells with trend-based coloring
         const cells = [
             { text: formattedDate, trend: null },
@@ -329,13 +354,16 @@ function displayTable(macdData) {
             { text: item.macdDescription || 'MACD中性', trend: item.macdTrend },
             { text: item.mfiDescription || 'MFI中性', trend: item.mfiTrend },
             { text: item.dmiDescription || 'DMI中性', trend: item.dmiTrend },
-            { text: item.supertrendAdvice || '無', trend: item.supertrendAdvice ? 'supertrend' : null },
-            { text: item.fibDescription || 'Fib中性', trend: item.fibTrendAnalysis }
+            { text: fibHtml, trend: null, isHtml: true }
         ];
 
         cells.forEach(cell => {
             const td = document.createElement('td');
-            td.textContent = cell.text;
+            if (cell.isHtml) {
+                td.innerHTML = cell.text;
+            } else {
+                td.textContent = cell.text;
+            }
             
             // Special color handling for specific KDJ signals
             if (cell.text.includes('KDJ金叉 (K線上穿D線)')) {

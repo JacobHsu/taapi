@@ -18,7 +18,7 @@ const CONFIG = {
     SYMBOL: 'ETH/USDT',
     INTERVAL: '1h', 
     BACKTRACKS: 10,
-    API_DELAY_MS: 16000, // Delay between API calls in milliseconds (16 seconds for safety)
+    API_DELAY_MS: 15000, // Delay between API calls in milliseconds (15 seconds minimum)
     
     // Cache settings
     CACHE_DURATION_HOURS: 1,
