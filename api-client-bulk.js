@@ -20,199 +20,70 @@ class TaapiClientBulk {
         return this.fetchLatestData(symbol, interval, progressCallback);
     }
 
-    // Core method to fetch data with specified backtracks
+    // Core method to fetch data with specified backtracks using true Bulk API
     async fetchIndicatorsWithBacktracks(symbol = 'ETH/USDT', interval = '1h', backtracks = 1, progressCallback = null) {
         try {
-            const totalSteps = 10; // Price, KDJ, RSI, MACD, BBands, Keltner Channels, PSAR, Supertrend, MFI, DMI
-            let currentStep = 0;
-            
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching price data...');
-            console.log('Fetching price data...');
-            const priceResponse = await fetch(`${this.baseUrl}/price?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!priceResponse.ok) {
-                const errorText = await priceResponse.text();
-                if (priceResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching price failed: ${priceResponse.status} - ${errorText}`);
-            }
-            const priceData = await priceResponse.json();
-            console.log('Price Response:', priceData);
+            const totalSteps = 2; // 1 bulk request + processing
 
-            // Wait for a configurable delay
-            const delay = window.CONFIG?.API_DELAY_MS || 15000;
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            if (progressCallback) progressCallback(1, totalSteps, '正在獲取所有指標數據...');
+            console.log('Fetching all indicators via Bulk API...');
 
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching KDJ data...');
-            console.log('Fetching KDJ data...');
-            const kdjResponse = await fetch(`${this.baseUrl}/stoch?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!kdjResponse.ok) {
-                const errorText = await kdjResponse.text();
-                if (kdjResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching KDJ failed: ${kdjResponse.status} - ${errorText}`);
-            }
-            const kdjData = await kdjResponse.json();
-            console.log('KDJ Response:', kdjData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching RSI data...');
-            console.log('Fetching RSI data...');
-            const rsiResponse = await fetch(`${this.baseUrl}/rsi?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!rsiResponse.ok) {
-                const errorText = await rsiResponse.text();
-                if (rsiResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching RSI failed: ${rsiResponse.status} - ${errorText}`);
-            }
-            const rsiData = await rsiResponse.json();
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching MACD data...');
-            console.log('Fetching MACD data...');
-            const macdResponse = await fetch(`${this.baseUrl}/macd?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!macdResponse.ok) {
-                const errorText = await macdResponse.text();
-                if (macdResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching MACD failed: ${macdResponse.status} - ${errorText}`);
-            }
-            const macdData = await macdResponse.json();
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching BBands data...');
-            console.log('Fetching BBands data...');
-            const bbandsResponse = await fetch(`${this.baseUrl}/bbands?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!bbandsResponse.ok) {
-                const errorText = await bbandsResponse.text();
-                if (bbandsResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching BBands failed: ${bbandsResponse.status} - ${errorText}`);
-            }
-            const bbandsData = await bbandsResponse.json();
-            console.log('BBands Response:', bbandsData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Keltner Channels data...');
-            console.log('Fetching Keltner Channels data...');
-            const keltnerResponse = await fetch(`${this.baseUrl}/keltnerchannels?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!keltnerResponse.ok) {
-                const errorText = await keltnerResponse.text();
-                if (keltnerResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching Keltner Channels failed: ${keltnerResponse.status} - ${errorText}`);
-            }
-            const keltnerData = await keltnerResponse.json();
-            console.log('Keltner Channels Response:', keltnerData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching PSAR data...');
-            console.log('Fetching PSAR data...');
-            const psarResponse = await fetch(`${this.baseUrl}/sar?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!psarResponse.ok) {
-                const errorText = await psarResponse.text();
-                if (psarResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching PSAR failed: ${psarResponse.status} - ${errorText}`);
-            }
-            const psarData = await psarResponse.json();
-            console.log('PSAR Response:', psarData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching Supertrend data...');
-            console.log('Fetching Supertrend data...');
-            const supertrendResponse = await fetch(`${this.baseUrl}/supertrend?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!supertrendResponse.ok) {
-                const errorText = await supertrendResponse.text();
-                if (supertrendResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching Supertrend failed: ${supertrendResponse.status} - ${errorText}`);
-            }
-            const supertrendData = await supertrendResponse.json();
-            console.log('Supertrend Response:', supertrendData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching MFI data...');
-            console.log('Fetching MFI data...');
-            const mfiResponse = await fetch(`${this.baseUrl}/mfi?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!mfiResponse.ok) {
-                const errorText = await mfiResponse.text();
-                if (mfiResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching MFI failed: ${mfiResponse.status} - ${errorText}`);
-            }
-            const mfiData = await mfiResponse.json();
-            console.log('MFI Response:', mfiData);
-
-            // Wait for a configurable delay
-            console.log(`Waiting ${delay / 1000} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-
-            if (progressCallback) progressCallback(++currentStep, totalSteps, 'Fetching DMI data...');
-            console.log('Fetching DMI data...');
-            const dmiResponse = await fetch(`${this.baseUrl}/dmi?secret=${this.apiKey}&exchange=binance&symbol=${symbol}&interval=${interval}&backtracks=${backtracks}&addResultTimestamp=true`);
-            if (!dmiResponse.ok) {
-                const errorText = await dmiResponse.text();
-                if (dmiResponse.status === 429) {
-                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
-                }
-                throw new Error(`Fetching DMI failed: ${dmiResponse.status} - ${errorText}`);
-            }
-            const dmiData = await dmiResponse.json();
-            console.log('DMI Response:', dmiData);
-
-            // Construct the final object for processing
-            const finalBulkResponse = {
-                data: [
-                    { id: 'price', result: priceData },
-                    { id: 'kdj', result: kdjData },
-                    { id: 'rsi', result: rsiData },
-                    { id: 'macd', result: macdData },
-                    { id: 'bbands', result: bbandsData },
-                    { id: 'keltner', result: keltnerData },
-                    { id: 'psar', result: psarData },
-                    { id: 'supertrend', result: supertrendData },
-                    { id: 'mfi', result: mfiData },
-                    { id: 'dmi', result: dmiData }
+            // Build the bulk request payload
+            const bulkPayload = {
+                secret: this.apiKey,
+                construct: {
+                    exchange: 'binance',
+                    symbol: symbol,
+                    interval: interval,
+                    backtracks: backtracks,
+                    addResultTimestamp: true
+                },
+                indicator: 'price',
+                results: backtracks,
+                indicators: [
+                    { id: 'price', indicator: 'price' },
+                    { id: 'kdj', indicator: 'stoch' },
+                    { id: 'rsi', indicator: 'rsi' },
+                    { id: 'macd', indicator: 'macd' },
+                    { id: 'bbands', indicator: 'bbands' },
+                    { id: 'keltner', indicator: 'keltnerchannels' },
+                    { id: 'psar', indicator: 'sar' },
+                    { id: 'supertrend', indicator: 'supertrend' },
+                    { id: 'mfi', indicator: 'mfi' },
+                    { id: 'dmi', indicator: 'dmi' }
                 ]
             };
 
-            if (progressCallback) progressCallback(totalSteps, totalSteps, 'Processing data...');
-            console.log('Parsed sequential API response:', finalBulkResponse);
+            const response = await fetch(`${this.baseUrl}/bulk`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bulkPayload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                if (response.status === 429) {
+                    throw new Error(`API 調用頻率限制，請稍後再試: ${errorText}`);
+                }
+                throw new Error(`Bulk API request failed: ${response.status} - ${errorText}`);
+            }
+
+            const bulkData = await response.json();
+            console.log('Bulk API Response:', bulkData);
+
+            // Transform the bulk response to match our expected format
+            const finalBulkResponse = {
+                data: bulkData.data || []
+            };
+
+            if (progressCallback) progressCallback(totalSteps, totalSteps, '處理數據中...');
+            console.log('Parsed Bulk API response:', finalBulkResponse);
             return this.processBulkData(finalBulkResponse);
 
         } catch (error) {
-            console.error('Error fetching indicators data sequentially:', error);
+            console.error('Error fetching indicators via Bulk API:', error);
             throw error;
         }
     }
